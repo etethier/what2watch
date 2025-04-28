@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  --pink-start: #ec4899;
+  --red-middle: #f87171;
+  --orange-end: #f97316;
+  --font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-family);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #ffffff; /* Override dark mode - always use white background */
+    --foreground: #171717;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-family);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Smooth scrolling for the entire page */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Typography enhancements */
+h1, h2, h3, h4, h5, h6 {
+  line-height: 1.1;
+  font-weight: bold;
+  letter-spacing: -0.01em;
+}
+
+/* Button styles */
+button {
+  cursor: pointer;
+  font-weight: 500;
+}
+
+/* Transition utilities */
+.transition-all {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 300ms;
+}
+
+/* Adding specific utilities for the gradient text that matches the inspiration exactly */
+.inspired-gradient-text {
+  background: linear-gradient(90deg, #ec4899 0%, #f87171 50%, #f97316 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Custom gradient text utility that exactly matches the inspiration */
+.gradient-text {
+  background: linear-gradient(to right, var(--primary-gradient-from), var(--primary-gradient-via), var(--primary-gradient-to));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Custom class for the landing page button gradient */
+.button-gradient {
+  background: linear-gradient(to right, var(--primary-gradient-from), var(--primary-gradient-to));
+  border: none;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}

@@ -1,0 +1,25 @@
+
+> what2watch@0.1.0 dev
+> next dev
+
+   ▲ Next.js 14.1.0
+   - Local:        http://localhost:3000
+   - Environments: .env.local
+
+ ✓ Ready in 1556ms
+ ○ Compiling / ...
+ ⨯ ./app/globals.css
+Module not found: Can't resolve 'tailwindcss'
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./app/globals.css
+ ⨯ ./app/globals.css
+Module not found: Can't resolve 'tailwindcss'
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./app/globals.css
+[?25h
