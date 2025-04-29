@@ -155,7 +155,7 @@ export const getRecommendations = async (quizAnswers: QuizAnswer[]) => {
  */
 export const adaptToWhat2WatchFormat = (item: tmdbService.TMDBContentItem) => {
   // Generate a random value for redditBuzz
-  const redditBuzzOptions = ['Low', 'Medium', 'High'];
+  const redditBuzzOptions = ['Low', 'Medium', 'High'] as const;
   const randomBuzzIndex = Math.floor(Math.random() * redditBuzzOptions.length);
   
   // Generate a random streaming platform
@@ -170,11 +170,14 @@ export const adaptToWhat2WatchFormat = (item: tmdbService.TMDBContentItem) => {
   // Ensure the type is strictly 'movie' or 'tv' as required by MovieTVShow type
   const contentType = item.media_type === 'movie' ? 'movie' as const : 'tv' as const;
   
+  // Get the full poster URL using the TMDB image service
+  const posterUrl = tmdbService.getImageUrl(item.poster_path, tmdbService.PosterSize.LARGE);
+  
   return {
     id: item.id,
     title: contentTitle,
     overview: item.overview,
-    posterPath: item.poster_path || '/placeholder-poster.jpg',
+    posterPath: posterUrl || '/placeholder-poster.jpg',
     type: contentType,
     rating: item.vote_average,
     genres: [], // Would need to fetch genre details separately

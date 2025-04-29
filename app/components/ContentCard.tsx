@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { FaStar, FaTv, FaFilm } from 'react-icons/fa';
 import { MovieTVShow } from '../types';
 import TrailerButton from './TrailerButton';
@@ -10,27 +11,41 @@ interface ContentCardProps {
 }
 
 export default function ContentCard({ content, className = '' }: ContentCardProps) {
+  const [imageError, setImageError] = useState(false);
+  
   // Use the releaseYear from TMDB if available, otherwise use current year
   const year = content.releaseYear || new Date().getFullYear();
   
+  // Handle image loading errors
+  const handleImageError = () => {
+    setImageError(true);
+  };
+  
   return (
-    <div className={`bg-white rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-shadow duration-300 ${className}`}>
+    <div className={`bg-white rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 ${className}`}>
       {/* Poster Image */}
       <div className="relative">
-        {content.posterPath ? (
+        {content.posterPath && !imageError ? (
           <img 
             src={content.posterPath} 
             alt={content.title}
-            className="w-full h-56 object-cover"
+            className="w-full h-64 object-cover"
+            onError={handleImageError}
+            loading="lazy"
           />
         ) : (
-          <div className="w-full h-56 bg-gray-300 flex items-center justify-center">
-            <span className="text-gray-500">No Image</span>
+          <div className="w-full h-64 bg-gray-200 flex items-center justify-center">
+            <div className="text-center p-4">
+              <div className="text-3xl mb-2">
+                {content.type === 'movie' ? <FaFilm className="mx-auto text-gray-400" /> : <FaTv className="mx-auto text-gray-400" />}
+              </div>
+              <span className="text-gray-500 font-medium">{content.title}</span>
+            </div>
           </div>
         )}
         
         {/* Type Badge - Movie or TV */}
-        <div className="absolute top-2 left-2 bg-black bg-opacity-70 text-white text-xs py-1 px-2 rounded-full flex items-center">
+        <div className="absolute top-2 left-2 bg-black bg-opacity-70 text-white text-xs py-1 px-2 rounded-full flex items-center shadow-sm">
           {content.type === 'movie' ? (
             <>
               <FaFilm className="mr-1" />
@@ -46,7 +61,7 @@ export default function ContentCard({ content, className = '' }: ContentCardProp
         
         {/* Rating Badge */}
         {content.rating > 0 && (
-          <div className="absolute top-2 right-2 bg-yellow-500 text-white text-xs py-1 px-2 rounded-full flex items-center">
+          <div className="absolute top-2 right-2 bg-yellow-500 text-white text-xs py-1 px-2 rounded-full flex items-center shadow-sm">
             <FaStar className="mr-1" />
             {content.rating.toFixed(1)}
           </div>
@@ -54,7 +69,7 @@ export default function ContentCard({ content, className = '' }: ContentCardProp
         
         {/* Year Badge (if available) */}
         {content.releaseYear && (
-          <div className="absolute top-10 right-2 bg-gray-800 text-white text-xs py-1 px-2 rounded-full">
+          <div className="absolute top-10 right-2 bg-gray-800 text-white text-xs py-1 px-2 rounded-full shadow-sm">
             {content.releaseYear}
           </div>
         )}
@@ -93,6 +108,15 @@ export default function ContentCard({ content, className = '' }: ContentCardProp
         <p className="text-gray-600 text-sm mt-2 line-clamp-2" title={content.overview}>
           {content.overview}
         </p>
+        
+        {/* Streaming Platform Badge */}
+        {content.streamingPlatform && (
+          <div className="mt-3 mb-2">
+            <span className="inline-block bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded">
+              {content.streamingPlatform}
+            </span>
+          </div>
+        )}
         
         {/* Full Trailer Button */}
         <div className="mt-3">
