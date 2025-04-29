@@ -6,11 +6,16 @@ import Recommendations from './components/Recommendations';
 import { MovieTVShow } from './types';
 import { FaArrowRight } from 'react-icons/fa';
 import supabaseServices from './services/supabase-wrapper';
+import { getPopularMovies } from './services/tmdb-service';
+import { getTrendingContent, adaptToWhat2WatchFormat } from './services/recommendation-service';
 
 export default function Home() {
   const [showQuiz, setShowQuiz] = useState(false);
   const [showRecommendations, setShowRecommendations] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState('');
+  const [tmdbStatus, setTmdbStatus] = useState('');
+  const [recommendations, setRecommendations] = useState<MovieTVShow[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   
   // Test Supabase connection on load
   useEffect(() => {
@@ -28,6 +33,52 @@ export default function Home() {
     testConnection();
   }, []);
   
+  // Load trending content from TMDB
+  useEffect(() => {
+    const loadTrendingContent = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Try to get trending content
+        let tmdbContent = await getTrendingContent();
+        
+        // Convert TMDB format to our app format
+        let content: MovieTVShow[] = [];
+        if (tmdbContent.length > 0) {
+          content = tmdbContent.map(item => adaptToWhat2WatchFormat(item));
+        }
+        
+        // If that fails, try popular movies
+        if (content.length === 0) {
+          const popularMovies = await getPopularMovies();
+          if (popularMovies.results.length > 0) {
+            content = popularMovies.results.map(item => adaptToWhat2WatchFormat(item));
+          }
+        }
+        
+        // If we have content, use it
+        if (content.length > 0) {
+          console.log('TMDB API success, loaded', content.length, 'items');
+          setRecommendations(content);
+          setTmdbStatus('TMDB OK');
+        } else {
+          // Fall back to sample data
+          console.log('TMDB API returned no content, using sample data');
+          setRecommendations(sampleRecommendations);
+          setTmdbStatus('TMDB Error (Using Sample Data)');
+        }
+      } catch (error) {
+        console.error('Error loading TMDB content:', error);
+        setRecommendations(sampleRecommendations);
+        setTmdbStatus('TMDB Error (Using Sample Data)');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadTrendingContent();
+  }, []);
+
   // Sample recommendations data
   const sampleRecommendations: MovieTVShow[] = [
     {
@@ -198,7 +249,13 @@ export default function Home() {
             </h1>
             
             <h2 className="text-4xl md:text-6xl font-bold mb-8">
-              <span className="inspired-gradient-text">
+              <span style={{
+                background: 'linear-gradient(90deg, #ec4899 0%, #f87171 50%, #f97316 100%)',
+                WebkitBackgroundClip: 'text',
+                backgroundClip: 'text',
+                color: 'transparent',
+                display: 'inline-block'
+              }}>
                 Find your next watch <span className="mx-2">—</span> instantly<span className="text-orange-400">.</span>
               </span>
             </h2>
@@ -211,20 +268,53 @@ export default function Home() {
             <div className="flex justify-center">
               <button 
                 onClick={startQuiz}
-                className="bg-gradient-to-r from-pink-500 via-red-400 to-orange-400 text-white text-xl font-medium py-3 px-8 rounded-full flex items-center justify-center gap-2 hover:shadow-lg transition-all duration-300"
+                style={{
+                  background: 'linear-gradient(to right, #ec4899, #f87171, #f97316)',
+                  color: 'white',
+                  fontSize: '1.25rem',
+                  fontWeight: '500',
+                  padding: '0.75rem 2rem',
+                  borderRadius: '9999px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  transition: 'all 300ms',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'}
+                onMouseOut={(e) => e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'}
               >
                 Get My Show <FaArrowRight className="ml-1" />
               </button>
             </div>
             
-            {/* Connection status indicator */}
-            {connectionStatus && (
-              <div className="mt-4 text-sm text-gray-500">
-                {connectionStatus === 'Supabase OK' ? 
-                  <span className="text-green-500">✓ {connectionStatus}</span> : 
-                  <span className="text-red-500">✗ {connectionStatus}</span>}
+            {/* Connection status indicators */}
+            <div className="mt-4 text-sm text-gray-500 space-y-1">
+              {connectionStatus && (
+                <div>
+                  {connectionStatus === 'Supabase OK' ? 
+                    <span className="text-green-500">✓ {connectionStatus}</span> : 
+                    <span className="text-red-500">✗ {connectionStatus}</span>}
+                </div>
+              )}
+              
+              {tmdbStatus && (
+                <div>
+                  {tmdbStatus === 'TMDB OK' ? 
+                    <span className="text-green-500">✓ {tmdbStatus}</span> : 
+                    <span className="text-yellow-500">⚠ {tmdbStatus}</span>}
+                </div>
+              )}
+              
+              {isLoading && (
+                <div className="text-blue-500">Loading content...</div>
+              )}
+              
+              <div className="text-sm mt-1">
+                <a href="/tmdb-test" className="text-blue-500 underline">Test TMDB Connection</a>
               </div>
-            )}
+            </div>
           </div>
         </section>
 
@@ -286,13 +376,28 @@ export default function Home() {
         </section>
 
         {/* CTA Section */}
-        <section className="bg-gradient-to-r from-pink-500 to-orange-400 py-16 px-4 text-white">
+        <section style={{
+          background: 'linear-gradient(to right, #ec4899, #f97316)',
+          padding: '4rem 1rem',
+          color: 'white'
+        }}>
           <div className="max-w-3xl mx-auto text-center">
             <h2 className="text-3xl font-bold mb-6">Ready to find your next favorite show?</h2>
             
             <button 
               onClick={startQuiz}
-              className="bg-white text-pink-500 font-medium py-3 px-6 rounded-full flex items-center justify-center gap-2 mx-auto"
+              style={{
+                background: 'white',
+                color: '#ec4899',
+                fontWeight: '500',
+                padding: '0.75rem 1.5rem',
+                borderRadius: '9999px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem',
+                margin: '0 auto'
+              }}
             >
               Get My Show <FaArrowRight />
             </button>
@@ -307,7 +412,7 @@ export default function Home() {
     <Quiz onComplete={handleQuizComplete} />
   ) : (
     <Recommendations 
-      recommendations={sampleRecommendations} 
+      recommendations={recommendations.length > 0 ? recommendations : sampleRecommendations} 
       onRetakeQuiz={handleRetakeQuiz} 
     />
   );

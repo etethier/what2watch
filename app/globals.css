@@ -64,19 +64,21 @@ button {
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  display: inline-block; /* Ensure the gradient applies correctly */
 }
 
 /* Custom gradient text utility that exactly matches the inspiration */
 .gradient-text {
-  background: linear-gradient(to right, var(--primary-gradient-from), var(--primary-gradient-via), var(--primary-gradient-to));
+  background: linear-gradient(to right, var(--pink-start), var(--red-middle), var(--orange-end));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  display: inline-block; /* Ensure the gradient applies correctly */
 }
 
 /* Custom class for the landing page button gradient */
 .button-gradient {
-  background: linear-gradient(to right, var(--primary-gradient-from), var(--primary-gradient-to));
+  background: linear-gradient(to right, var(--pink-start), var(--orange-end));
   border: none;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }

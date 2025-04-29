@@ -40,11 +40,11 @@ export default function TestPage() {
       
       <div className="text-sm text-gray-600">
         <p>This is a simplified test page to verify the app is working correctly.</p>
-        <p>The port being used is 3009. Try accessing this through:</p>
+        <p>The port being used is 3000. Try accessing this through:</p>
         <ul className="list-disc pl-5 mt-2">
-          <li><a href="http://localhost:3009/test" className="text-blue-500 underline">localhost:3009/test</a></li>
-          <li><a href="http://127.0.0.1:3009/test" className="text-blue-500 underline">127.0.0.1:3009/test</a></li>
-          <li><a href="http://192.168.1.201:3009/test" className="text-blue-500 underline">192.168.1.201:3009/test</a> (your network IP)</li>
+          <li><a href="http://localhost:3000/test" className="text-blue-500 underline">localhost:3000/test</a></li>
+          <li><a href="http://127.0.0.1:3000/test" className="text-blue-500 underline">127.0.0.1:3000/test</a></li>
+          <li><a href="http://192.168.1.201:3000/test" className="text-blue-500 underline">192.168.1.201:3000/test</a> (your network IP)</li>
         </ul>
       </div>
     </div>
