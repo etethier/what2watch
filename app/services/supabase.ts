@@ -1,11 +1,28 @@
 import { createClient } from '@supabase/supabase-js';
 import { MovieTVShow, Question, Option } from '../types';
 
-// Initialize Supabase client
+// Initialize Supabase client with better error handling
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Log environment variable presence (not values) for debugging
+if (typeof window !== 'undefined') {
+  console.log('Supabase URL available:', !!supabaseUrl);
+  console.log('Supabase Key available:', !!supabaseAnonKey);
+}
+
+// Validate environment variables
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('Missing Supabase environment variables. Check your .env.local file');
+}
+
+// Create client with proper error handling
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+  }
+});
 
 // Types to match our database schema
 export interface User {

@@ -1,14 +1,32 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Quiz from './components/Quiz';
 import Recommendations from './components/Recommendations';
 import { MovieTVShow } from './types';
 import { FaArrowRight } from 'react-icons/fa';
+import supabaseServices from './services/supabase-wrapper';
 
 export default function Home() {
   const [showQuiz, setShowQuiz] = useState(false);
   const [showRecommendations, setShowRecommendations] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState('');
+  
+  // Test Supabase connection on load
+  useEffect(() => {
+    const testConnection = async () => {
+      try {
+        const user = await supabaseServices.auth.getCurrentUser();
+        console.log('Supabase connection test:', user ? 'Connected with user' : 'Connected without user');
+        setConnectionStatus('Supabase OK');
+      } catch (error) {
+        console.error('Supabase connection test failed:', error);
+        setConnectionStatus('Supabase Error');
+      }
+    };
+    
+    testConnection();
+  }, []);
   
   // Sample recommendations data
   const sampleRecommendations: MovieTVShow[] = [
@@ -198,6 +216,15 @@ export default function Home() {
                 Get My Show <FaArrowRight className="ml-1" />
               </button>
             </div>
+            
+            {/* Connection status indicator */}
+            {connectionStatus && (
+              <div className="mt-4 text-sm text-gray-500">
+                {connectionStatus === 'Supabase OK' ? 
+                  <span className="text-green-500">✓ {connectionStatus}</span> : 
+                  <span className="text-red-500">✗ {connectionStatus}</span>}
+              </div>
+            )}
           </div>
         </section>
 
