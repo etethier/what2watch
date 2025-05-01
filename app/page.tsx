@@ -45,31 +45,60 @@ export default function Home() {
         // Convert TMDB format to our app format
         let content: MovieTVShow[] = [];
         if (tmdbContent.length > 0) {
-          content = tmdbContent.map(item => adaptToWhat2WatchFormat(item));
+          content = tmdbContent;
         }
         
         // If that fails, try popular movies
         if (content.length === 0) {
-          const popularMovies = await getPopularMovies();
-          if (popularMovies.results.length > 0) {
-            content = popularMovies.results.map(item => adaptToWhat2WatchFormat(item));
+          // Try to get multiple pages of popular movies for more content
+          try {
+            const popularMoviesPage1 = await getPopularMovies(1);
+            const popularMoviesPage2 = await getPopularMovies(2);
+            const popularMoviesPage3 = await getPopularMovies(3);
+            const combinedResults = [
+              ...popularMoviesPage1.results,
+              ...popularMoviesPage2.results,
+              ...popularMoviesPage3.results
+            ];
+            
+            if (combinedResults.length > 0) {
+              content = combinedResults.map(item => adaptToWhat2WatchFormat({...item, media_type: 'movie' as const}));
+            }
+          } catch (error) {
+            console.error('Error fetching multiple pages:', error);
+            const popularMovies = await getPopularMovies();
+            if (popularMovies.results.length > 0) {
+              content = popularMovies.results.map(item => adaptToWhat2WatchFormat({...item, media_type: 'movie' as const}));
+            }
           }
         }
         
         // If we have content, use it
         if (content.length > 0) {
           console.log('TMDB API success, loaded', content.length, 'items');
-          setRecommendations(content);
+          
+          // Mix in some sample recommendations for diversity
+          const mixedContent = [
+            ...content.slice(0, Math.min(24, content.length)),
+            ...sampleRecommendations.slice(0, 6)
+          ];
+          
+          // Sort by rating for better recommendations
+          mixedContent.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+          
+          setRecommendations(mixedContent);
           setTmdbStatus('TMDB OK');
         } else {
           // Fall back to sample data
           console.log('TMDB API returned no content, using sample data');
-          setRecommendations(sampleRecommendations);
+          const allSampleData = [...sampleRecommendations, ...generateMoreSampleRecommendations()];
+          setRecommendations(allSampleData);
           setTmdbStatus('TMDB Error (Using Sample Data)');
         }
       } catch (error) {
         console.error('Error loading TMDB content:', error);
-        setRecommendations(sampleRecommendations);
+        const allSampleData = [...sampleRecommendations, ...generateMoreSampleRecommendations(), ...generateMoreSampleRecommendations()];
+        setRecommendations(allSampleData);
         setTmdbStatus('TMDB Error (Using Sample Data)');
       } finally {
         setIsLoading(false);
@@ -79,13 +108,25 @@ export default function Home() {
     loadTrendingContent();
   }, []);
 
+  // Generate more sample recommendations
+  const generateMoreSampleRecommendations = (): MovieTVShow[] => {
+    // Create more sample recommendations by modifying existing ones
+    return sampleRecommendations.map((item, index) => ({
+      ...item,
+      id: item.id + 100, // Ensure unique IDs
+      title: `${item.title} (More Like This)`,
+      rating: Math.min(10, item.rating + Math.random()),
+      rottenTomatoesScore: Math.min(100, item.rottenTomatoesScore ? item.rottenTomatoesScore + Math.floor(Math.random() * 5) : 80)
+    }));
+  };
+
   // Sample recommendations data
   const sampleRecommendations: MovieTVShow[] = [
     {
       id: 1,
       title: "Everything Everywhere All At Once",
       overview: "A wildly imaginative story about a woman who must save the multiverse by connecting with alternate versions of herself.",
-      posterPath: "/rKvCys0fMIIi1X9rmJBxTPLAtoU.jpg",
+      posterPath: "https://m.media-amazon.com/images/M/MV5BYTdiOTIyZTQtNmQ1OS00NjZlLWIyMTgtYzk5Y2M3ZDVmMDk1XkEyXkFqcGdeQXVyMTAzMDg4NzU0._V1_.jpg",
       type: "movie",
       rating: 8.1,
       genres: ["Sci-Fi", "Drama", "Comedy", "Action"],
@@ -98,7 +139,7 @@ export default function Home() {
       id: 2,
       title: "Dune",
       overview: "Paul Atreides, a brilliant and gifted young man born into a great destiny beyond his understanding, must travel to the most dangerous planet in the universe to ensure the future of his family and his people.",
-      posterPath: "/d5NXSklXo0qyIYkgV94XAgMIckC.jpg",
+      posterPath: "https://m.media-amazon.com/images/M/MV5BN2FjNmEyNWMtYzM0ZS00NjIyLTg5YzYtYThlMGVjNzE1OGViXkEyXkFqcGdeQXVyMTkxNjUyNQ@@._V1_FMjpg_UX1000_.jpg",
       type: "movie",
       rating: 7.9,
       genres: ["Sci-Fi", "Adventure", "Drama"],
@@ -111,7 +152,7 @@ export default function Home() {
       id: 3,
       title: "Succession",
       overview: "The Roy family is known for controlling the biggest media and entertainment company in the world. However, their world changes when their father steps down from the company.",
-      posterPath: "/xmNyk766OUW3MvZTqb6hy8aPfiF.jpg",
+      posterPath: "https://m.media-amazon.com/images/M/MV5BZTY0YjU0NTUtMGRmNS00NDMyLWI2MzYtNjM2MmM2Y2VmODliXkEyXkFqcGdeQXVyNjY1MTg4Mzc@._V1_.jpg",
       type: "tv",
       rating: 8.8,
       genres: ["Drama", "Comedy"],
@@ -124,7 +165,7 @@ export default function Home() {
       id: 4,
       title: "Nomadland",
       overview: "A woman in her sixties, after losing everything in the Great Recession, embarks on a journey through the American West, living as a van-dwelling modern-day nomad.",
-      posterPath: "/fmHBjfiMb7cP0dEZBOQBXn7peNN.jpg",
+      posterPath: "https://m.media-amazon.com/images/M/MV5BMDRiZWUxNmItNDU5Yy00ODNmLTk0M2ItZjQzZTA5OTJkZjkyXkEyXkFqcGdeQXVyMTkxNjUyNQ@@._V1_.jpg",
       type: "movie",
       rating: 7.4,
       genres: ["Drama"],
@@ -137,7 +178,7 @@ export default function Home() {
       id: 5,
       title: "The Shawshank Redemption",
       overview: "Two imprisoned men bond over a number of years, finding solace and eventual redemption through acts of common decency.",
-      posterPath: "/q6y0Go1tsGEsmtFryDOJo3dEmqu.jpg",
+      posterPath: "https://m.media-amazon.com/images/M/MV5BNDE3ODcxYzMtY2YzZC00NmNlLWJiNDMtZDViZWM2MzIxZDYwXkEyXkFqcGdeQXVyNjAwNDUxODI@._V1_.jpg",
       type: "movie",
       rating: 9.3,
       genres: ["Drama", "Crime"],
@@ -150,7 +191,7 @@ export default function Home() {
       id: 6,
       title: "Jojo Rabbit",
       overview: "A young boy in Hitler's army finds out his mother is hiding a Jewish girl in their home.",
-      posterPath: "/7GsM4mtM0worCtIVeiQt28HieeN.jpg",
+      posterPath: "https://m.media-amazon.com/images/M/MV5BZjU0Yzk2MzEtMjAzYy00MzY0LTg2YmItM2RkNzdkY2ZhN2JkXkEyXkFqcGdeQXVyNDg4NjY5OTQ@._V1_.jpg",
       type: "movie",
       rating: 7.9,
       genres: ["Comedy", "Drama", "War"],
@@ -163,7 +204,7 @@ export default function Home() {
       id: 7,
       title: "The Witch",
       overview: "A family in 1630s New England is torn apart by the forces of witchcraft, black magic, and possession.",
-      posterPath: "/zr33TBVf25rQZpW6PJP08Iu20UP.jpg",
+      posterPath: "https://m.media-amazon.com/images/M/MV5BMTUyNzkwMzAxOF5BMl5BanBnXkFtZTgwMzc1OTk1NjE@._V1_.jpg",
       type: "movie",
       rating: 6.9,
       genres: ["Drama", "Fantasy", "Horror", "Mystery"],
@@ -174,25 +215,25 @@ export default function Home() {
     },
     {
       id: 8,
-      title: "The Social Network",
-      overview: "As Harvard student Mark Zuckerberg creates the social networking site that would become known as Facebook, he is sued by the twins who claimed he stole their idea, and by the co-founder who was later squeezed out of the business.",
-      posterPath: "/n0ybibhJtQ5icDqTp8eRytcIHJx.jpg",
-      type: "movie",
-      rating: 7.8,
-      genres: ["Biography", "Drama"],
-      streamingPlatform: "Netflix",
-      imdbRating: 7.8,
+      title: "The Last of Us",
+      overview: "Twenty years after modern civilization has been destroyed, Joel, a hardened survivor, is hired to smuggle Ellie, a 14-year-old girl, out of an oppressive quarantine zone.",
+      posterPath: "https://m.media-amazon.com/images/M/MV5BZGUzYTI3M2EtZmM0Yy00NGUzLWJlYWUtZDhhNmQwNDFmZGJlXkEyXkFqcGdeQXVyNTM0OTY1OQ@@._V1_.jpg",
+      type: "tv",
+      rating: 8.6,
+      genres: ["Action", "Adventure", "Drama"],
+      streamingPlatform: "HBO Max",
+      imdbRating: 8.6,
       rottenTomatoesScore: 96,
-      redditBuzz: "Medium"
+      redditBuzz: "High"
     },
     {
       id: 9,
-      title: "Parasite",
-      overview: "Greed and class discrimination threaten the newly formed symbiotic relationship between the wealthy Park family and the destitute Kim clan.",
-      posterPath: "/7IiTTgloJzvGI1TAYymCfbfl3vT.jpg",
-      type: "movie",
+      title: "Atlanta",
+      overview: "Earn and his cousin Alfred try to make their way in the Atlanta music scene in order to better their lives and the lives of their families.",
+      posterPath: "https://m.media-amazon.com/images/M/MV5BZGU5YTVlZTktNzgzMS00MGVlLTgyMGMtNWJjNWYyYTllYTZiXkEyXkFqcGdeQXVyMTUzMTg2ODkz._V1_.jpg",
+      type: "tv",
       rating: 8.6,
-      genres: ["Comedy", "Drama", "Thriller"],
+      genres: ["Comedy", "Drama", "Music"],
       streamingPlatform: "Hulu",
       imdbRating: 8.6,
       rottenTomatoesScore: 98,
@@ -200,15 +241,15 @@ export default function Home() {
     },
     {
       id: 10,
-      title: "Stranger Things",
-      overview: "When a young boy disappears, his mother, a police chief, and his friends must confront terrifying supernatural forces in order to get him back.",
-      posterPath: "/49WJfeN0moxb9IPfGn8AIqMGskD.jpg",
-      type: "tv",
-      rating: 8.7,
-      genres: ["Drama", "Fantasy", "Horror", "Mystery", "Sci-Fi", "Thriller"],
-      streamingPlatform: "Netflix",
-      imdbRating: 8.7,
-      rottenTomatoesScore: 91,
+      title: "Parasite",
+      overview: "Greed and class discrimination threaten the newly formed symbiotic relationship between the wealthy Park family and the destitute Kim clan.",
+      posterPath: "https://m.media-amazon.com/images/M/MV5BYWZjMjk3ZTItODQ2ZC00NTY5LWE0ZDYtZTI3MjcwN2Q5NTVkXkEyXkFqcGdeQXVyODk4OTc3MTY@._V1_.jpg",
+      type: "movie",
+      rating: 8.5,
+      genres: ["Drama", "Thriller"],
+      streamingPlatform: "Hulu",
+      imdbRating: 8.5,
+      rottenTomatoesScore: 99,
       redditBuzz: "High"
     }
   ];
