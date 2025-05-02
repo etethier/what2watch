@@ -98,9 +98,37 @@ const sampleContent: MovieTVShow[] = [
   }
 ];
 
+// Add a typed interface for the reddit data used in the component
+interface RedditDataItem {
+  buzzLevel: 'High' | 'Medium' | 'Low' | 'Unknown';
+  sentiment: SentimentType;
+  postCount: number;
+  totalComments: number;
+  totalUpvotes: number;
+  sentimentScore: number;
+  topSubreddits: Array<{ name: string; count: number }>;
+  trendingTopics?: Array<{
+    term: string;
+    count: number;
+    sentiment: SentimentType;
+    sentimentScore: number;
+  }>;
+  commentSentiment?: {
+    totalComments: number;
+    analyzedComments: number;
+    averageSentiment: number;
+    sentimentType: SentimentType;
+    positiveComments: number;
+    negativeComments: number;
+    neutralComments: number;
+    keywords: Array<{ term: string; count: number }>;
+  };
+  error?: string;
+}
+
 export default function RedditTestPage() {
   const [content, setContent] = useState<MovieTVShow[]>(sampleContent);
-  const [redditData, setRedditData] = useState<Record<number, any>>({});
+  const [redditData, setRedditData] = useState<Record<number, RedditDataItem>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'mock' | 'algorithm' | 'api'>('mock');
   const [error, setError] = useState<string | null>(null);
@@ -216,6 +244,91 @@ export default function RedditTestPage() {
           label: 'Unknown'
         };
     }
+  };
+
+  // Helper component for rendering trending topics
+  const TrendingTopics = ({ topics }: { topics: RedditDataItem['trendingTopics'] }) => {
+    if (!topics || topics.length === 0) return null;
+    
+    return (
+      <div className="mt-3">
+        <p className="text-gray-600 font-semibold">Trending Topics:</p>
+        <div className="mt-1 flex flex-wrap gap-1">
+          {topics.map((topic, i) => {
+            let topicColor = "bg-gray-200 text-gray-800";
+            if (topic.sentiment === 'Positive') topicColor = "bg-green-100 text-green-800";
+            if (topic.sentiment === 'Negative') topicColor = "bg-red-100 text-red-800";
+            
+            return (
+              <span 
+                key={i} 
+                className={`${topicColor} text-xs px-2 py-1 rounded flex items-center`}
+                title={`Sentiment: ${topic.sentiment} (${topic.sentimentScore.toFixed(2)})`}
+              >
+                {topic.term} ({topic.count})
+              </span>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+  
+  // Helper component for rendering comment sentiment analysis
+  const CommentAnalysis = ({ sentiment }: { sentiment: RedditDataItem['commentSentiment'] }) => {
+    if (!sentiment || sentiment.totalComments === 0) return null;
+    
+    return (
+      <div className="mt-3 border-t pt-2">
+        <p className="text-gray-600 font-semibold">Comment Analysis:</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-1 text-xs">
+          <div className="bg-gray-100 p-1 rounded">
+            <span className="text-gray-500">Comments:</span>
+            <div>{sentiment.totalComments}</div>
+          </div>
+          
+          <div className="bg-green-50 p-1 rounded">
+            <span className="text-gray-500">Positive:</span>
+            <div>{sentiment.positiveComments}</div>
+          </div>
+          
+          <div className="bg-red-50 p-1 rounded">
+            <span className="text-gray-500">Negative:</span>
+            <div>{sentiment.negativeComments}</div>
+          </div>
+          
+          <div className="bg-yellow-50 p-1 rounded">
+            <span className="text-gray-500">Neutral:</span>
+            <div>{sentiment.neutralComments}</div>
+          </div>
+        </div>
+        
+        {sentiment.keywords?.length > 0 && (
+          <div className="mt-2">
+            <p className="text-gray-500 text-xs">Comment Keywords:</p>
+            <div className="flex flex-wrap gap-1 mt-1">
+              {sentiment.keywords.slice(0, 8).map((kw, i) => (
+                <span key={i} className="bg-blue-50 text-blue-800 text-xs px-1.5 py-0.5 rounded">
+                  {kw.term} ({kw.count})
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        <div className="mt-2 text-xs text-gray-500">
+          Overall comment sentiment: 
+          <span className={
+            sentiment.sentimentType === 'Positive' ? 'text-green-600 font-semibold ml-1' : 
+            sentiment.sentimentType === 'Negative' ? 'text-red-600 font-semibold ml-1' : 
+            'text-yellow-600 font-semibold ml-1'
+          }>
+            {sentiment.sentimentType} (
+            {sentiment.averageSentiment.toFixed(2)})
+          </span>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -389,7 +502,7 @@ export default function RedditTestPage() {
                           <div className="mt-2">
                             <p className="text-gray-600">Top subreddits:</p>
                             <div className="flex flex-wrap gap-1 mt-1">
-                              {redditData[item.id].topSubreddits.map((sub: any, i: number) => (
+                              {redditData[item.id].topSubreddits.map((sub, i) => (
                                 <span key={i} className="bg-gray-200 text-gray-800 text-xs px-2 py-1 rounded">
                                   r/{sub.name} ({sub.count})
                                 </span>
@@ -398,82 +511,8 @@ export default function RedditTestPage() {
                           </div>
                         )}
 
-                        {/* New section for trending topics */}
-                        {redditData[item.id].trendingTopics?.length > 0 && (
-                          <div className="mt-3">
-                            <p className="text-gray-600 font-semibold">Trending Topics:</p>
-                            <div className="mt-1 flex flex-wrap gap-1">
-                              {redditData[item.id].trendingTopics.map((topic: any, i: number) => {
-                                let topicColor = "bg-gray-200 text-gray-800";
-                                if (topic.sentiment === 'Positive') topicColor = "bg-green-100 text-green-800";
-                                if (topic.sentiment === 'Negative') topicColor = "bg-red-100 text-red-800";
-                                
-                                return (
-                                  <span 
-                                    key={i} 
-                                    className={`${topicColor} text-xs px-2 py-1 rounded flex items-center`}
-                                    title={`Sentiment: ${topic.sentiment} (${topic.sentimentScore.toFixed(2)})`}
-                                  >
-                                    {topic.term} ({topic.count})
-                                  </span>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
-                        
-                        {/* New section for comment sentiment analysis */}
-                        {redditData[item.id].commentSentiment && redditData[item.id].commentSentiment.totalComments > 0 && (
-                          <div className="mt-3 border-t pt-2">
-                            <p className="text-gray-600 font-semibold">Comment Analysis:</p>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-1 text-xs">
-                              <div className="bg-gray-100 p-1 rounded">
-                                <span className="text-gray-500">Comments:</span>
-                                <div>{redditData[item.id].commentSentiment.totalComments}</div>
-                              </div>
-                              
-                              <div className="bg-green-50 p-1 rounded">
-                                <span className="text-gray-500">Positive:</span>
-                                <div>{redditData[item.id].commentSentiment.positiveComments}</div>
-                              </div>
-                              
-                              <div className="bg-red-50 p-1 rounded">
-                                <span className="text-gray-500">Negative:</span>
-                                <div>{redditData[item.id].commentSentiment.negativeComments}</div>
-                              </div>
-                              
-                              <div className="bg-yellow-50 p-1 rounded">
-                                <span className="text-gray-500">Neutral:</span>
-                                <div>{redditData[item.id].commentSentiment.neutralComments}</div>
-                              </div>
-                            </div>
-                            
-                            {redditData[item.id].commentSentiment.keywords?.length > 0 && (
-                              <div className="mt-2">
-                                <p className="text-gray-500 text-xs">Comment Keywords:</p>
-                                <div className="flex flex-wrap gap-1 mt-1">
-                                  {redditData[item.id].commentSentiment.keywords.slice(0, 8).map((kw: any, i: number) => (
-                                    <span key={i} className="bg-blue-50 text-blue-800 text-xs px-1.5 py-0.5 rounded">
-                                      {kw.term} ({kw.count})
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                            
-                            <div className="mt-2 text-xs text-gray-500">
-                              Overall comment sentiment: 
-                              <span className={
-                                redditData[item.id].commentSentiment.sentimentType === 'Positive' ? 'text-green-600 font-semibold ml-1' : 
-                                redditData[item.id].commentSentiment.sentimentType === 'Negative' ? 'text-red-600 font-semibold ml-1' : 
-                                'text-yellow-600 font-semibold ml-1'
-                              }>
-                                {redditData[item.id].commentSentiment.sentimentType} (
-                                {redditData[item.id].commentSentiment.averageSentiment.toFixed(2)})
-                              </span>
-                            </div>
-                          </div>
-                        )}
+                        <TrendingTopics topics={redditData[item.id].trendingTopics} />
+                        <CommentAnalysis sentiment={redditData[item.id].commentSentiment} />
                       </div>
                     )}
                     

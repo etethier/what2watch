@@ -16,6 +16,15 @@ const redditCache: Record<string, { data: any; timestamp: number }> = {};
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
 /**
+ * Determine sentiment type from sentiment score
+ */
+export const getSentimentType = (score: number): SentimentType => {
+  if (score >= 0.2) return 'Positive';
+  if (score <= -0.2) return 'Negative';
+  return 'Neutral';
+};
+
+/**
  * Algorithmic estimator for Reddit buzz based on content properties
  * Used as a fallback when API data is not available
  */
@@ -59,14 +68,21 @@ export interface RedditBuzzResult {
 
 // Stop words to filter out from trending topics
 const STOP_WORDS = new Set([
+  // Common articles, prepositions, and conjunctions
   'a', 'an', 'the', 'and', 'or', 'but', 'if', 'because', 'as', 'what', 'which',
   'this', 'that', 'these', 'those', 'then', 'just', 'so', 'than', 'such', 'both',
   'through', 'about', 'for', 'is', 'of', 'while', 'during', 'to', 'from', 'in',
+  
+  // Media related common words
   'movie', 'show', 'film', 'tv', 'episode', 'series', 'season', 'character',
   'scene', 'watch', 'watching', 'watched', 'seen', 'see', 'look', 'think',
+  
+  // Opinion and feeling words
   'thought', 'feel', 'feels', 'felt', 'like', 'liked', 'loves', 'loved', 'hate',
   'hated', 'hates', 'good', 'great', 'bad', 'best', 'worst', 'better', 'worse',
   'awesome', 'terrible', 'amazing', 'poor', 'excellent', 'favorite', 'least',
+  
+  // Modals and common verb forms
   'must', 'should', 'could', 'would', 'will', 'ever', 'never', 'always',
   'actually', 'really'
 ]);
@@ -121,15 +137,6 @@ export const extractTrendingTopics = (texts: string[]): TrendingTopic[] => {
     .slice(0, 10); // Get top 10 topics
   
   return topWords;
-};
-
-/**
- * Determine sentiment type from sentiment score
- */
-const getSentimentType = (score: number): SentimentType => {
-  if (score >= 0.2) return 'Positive';
-  if (score <= -0.2) return 'Negative';
-  return 'Neutral';
 };
 
 /**
@@ -316,12 +323,7 @@ export const getRedditBuzzForTitle = async (
     const sentimentScore = sentimentItems > 0 ? sentimentSum / sentimentItems : 0;
     
     // Determine sentiment category
-    let sentimentType: SentimentType = 'Neutral';
-    if (sentimentScore >= 0.2) {
-      sentimentType = 'Positive';
-    } else if (sentimentScore <= -0.2) {
-      sentimentType = 'Negative';
-    }
+    const sentimentType = getSentimentType(sentimentScore);
     
     // Determine buzz level
     let buzzLevel: 'High' | 'Medium' | 'Low' = 'Low';
