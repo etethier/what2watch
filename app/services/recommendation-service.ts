@@ -237,158 +237,128 @@ export const getRecommendations = async (quizAnswers: QuizAnswer[]) => {
  * @returns Transformed content item in What2Watch format
  */
 export const adaptToWhat2WatchFormat = async (item: tmdbService.TMDBContentItem) => {
-  // Use our algorithm for Reddit buzz instead of random generation
-  const releaseYear = item.media_type === 'movie' 
-    ? (item.release_date ? parseInt(item.release_date.substring(0, 4)) : undefined)
-    : (item.first_air_date ? parseInt(item.first_air_date.substring(0, 4)) : undefined);
-  
-  // Map TMDB genre IDs to human-readable genres for our algorithm
-  const genreMap: {[key: number]: string} = {
-    28: 'Action', 12: 'Adventure', 16: 'Animation', 35: 'Comedy', 
-    80: 'Crime', 99: 'Documentary', 18: 'Drama', 10751: 'Family',
-    14: 'Fantasy', 36: 'History', 27: 'Horror', 10402: 'Music',
-    9648: 'Mystery', 10749: 'Romance', 878: 'Sci-Fi', 10770: 'TV Movie',
-    53: 'Thriller', 10752: 'War', 37: 'Western',
-    // TV genres
-    10759: 'Action', 10762: 'Kids', 10763: 'News', 10764: 'Reality',
-    10765: 'Sci-Fi', 10766: 'Soap', 10767: 'Talk', 10768: 'War & Politics'
-  };
-  
-  // Map genre IDs to names
-  const genres = item.genre_ids?.map(id => genreMap[id] || `Genre ${id}`).filter(Boolean) || [];
-  
-  // Generate a random streaming platform (still use random until we implement streaming API)
-  const streamingPlatforms = ['Netflix', 'Disney+', 'Hulu', 'Amazon Prime', 'HBO Max', 'Apple TV+'];
-  const randomPlatformIndex = Math.floor(Math.random() * streamingPlatforms.length);
-  
-  // Ensure title is never undefined
-  const contentTitle = item.media_type === 'movie' 
-    ? (item.title || 'Untitled Movie') 
-    : (item.name || 'Untitled TV Show');
-  
-  // Ensure the type is strictly 'movie' or 'tv' as required by MovieTVShow type
-  const contentType = item.media_type === 'movie' ? 'movie' as const : 'tv' as const;
-  
-  // Get the full poster URL using the TMDB image service
-  let posterUrl = tmdbService.getImageUrl(item.poster_path, tmdbService.PosterSize.LARGE);
-  
-  // Generate a fallback image if no poster is available
-  if (!posterUrl) {
-    // Check if backdrop image is available as fallback
-    posterUrl = tmdbService.getImageUrl(item.backdrop_path, tmdbService.PosterSize.LARGE);
+  try {
+    // Basic adaptation
+    const title = item.title || item.name || 'Unknown Title';
+    const type = item.media_type === 'tv' ? 'tv' : 'movie';
+    const releaseYear = item.release_date 
+      ? parseInt(item.release_date.substring(0, 4)) 
+      : item.first_air_date 
+        ? parseInt(item.first_air_date.substring(0, 4))
+        : null;
     
-    // If still no image, use themed placeholders based on content type and title
+    // Map TMDB genre IDs to human-readable genres
+    const genreMap: {[key: number]: string} = {
+      28: 'Action', 12: 'Adventure', 16: 'Animation', 35: 'Comedy', 
+      80: 'Crime', 99: 'Documentary', 18: 'Drama', 10751: 'Family',
+      14: 'Fantasy', 36: 'History', 27: 'Horror', 10402: 'Music',
+      9648: 'Mystery', 10749: 'Romance', 878: 'Sci-Fi', 10770: 'TV Movie',
+      53: 'Thriller', 10752: 'War', 37: 'Western',
+      // TV genres
+      10759: 'Action', 10762: 'Kids', 10763: 'News', 10764: 'Reality',
+      10765: 'Sci-Fi', 10766: 'Soap', 10767: 'Talk', 10768: 'War & Politics'
+    };
+    
+    // Map genre IDs to names
+    const genres = item.genre_ids?.map(id => genreMap[id] || `Genre ${id}`).filter(Boolean) || [];
+    
+    // Generate a random streaming platform (still use random until we implement streaming API)
+    const streamingPlatforms = ['Netflix', 'Disney+', 'Hulu', 'Amazon Prime', 'HBO Max', 'Apple TV+'];
+    const randomPlatformIndex = Math.floor(Math.random() * streamingPlatforms.length);
+    
+    // Get the poster URL from TMDB
+    let posterUrl = tmdbService.getImageUrl(item.poster_path, tmdbService.PosterSize.LARGE);
+    
+    // Generate a fallback image if no poster is available
     if (!posterUrl) {
-      // Enhanced set of placeholder images for better variety
-      const placeholders = {
-        movie: [
-          // Blockbuster movie poster styles
-          'https://t4.ftcdn.net/jpg/03/08/50/39/360_F_308503931_PNApIvDatL3XZM8CnNgN6jZCg3RKBMgc.jpg',
-          'https://t3.ftcdn.net/jpg/04/62/75/76/360_F_462757696_SWsnZNdOSZDcyCpJPMcU8PmQEgtCw6Jq.jpg',
-          'https://t3.ftcdn.net/jpg/05/35/47/14/360_F_535471454_sOXFXrB5BEwbN7PnrxPOZPKaRQ9qkGzF.jpg',
-          'https://thumbs.dreamstime.com/b/movie-film-poster-design-template-background-vintage-retro-style-can-be-used-backdrop-banner-brochure-leaflet-184121361.jpg',
-          'https://previews.123rf.com/images/rassco/rassco1801/rassco180100287/94165529-film-noir-inspired-abstract-background-with-silhouette-of-a-woman-with-hat-and-trench-coat.jpg'
-        ],
-        tv: [
-          // TV show poster styles 
-          'https://img.freepik.com/premium-vector/retro-tv-poster-vintage-television-broadcast-advertising-promo-banner-illustration_102902-1946.jpg',
-          'https://thumbs.dreamstime.com/b/tv-series-concept-vintage-cinema-poster-retro-television-old-style-vector-illustration-94804327.jpg',
-          'https://as2.ftcdn.net/v2/jpg/05/24/24/95/1000_F_524249576_HTFkYIRGJPDmJ5eYpZl1tpVLqCdlJlQZ.jpg',
-          'https://t4.ftcdn.net/jpg/05/29/81/39/360_F_529813974_GIkhhDWvLqcl3hLXHvEGtpfGUktHPPsB.jpg',
-          'https://previews.123rf.com/images/seamartini/seamartini1609/seamartini160900562/64257088-television-show-premiere-poster-in-retro-style-tv-screen-with-rays-and-red-curtains-on-dark-beam.jpg'
-        ]
-      };
+      // Check if backdrop image is available as fallback
+      posterUrl = tmdbService.getImageUrl(item.backdrop_path, tmdbService.PosterSize.LARGE);
       
-      // Add more specific genres with targeted placeholder images
-      const genrePlaceholders: Record<string, string[]> = {
-        'Action': [
-          'https://img.freepik.com/premium-vector/action-movie-poster-design-template_27088-288.jpg',
-          'https://img.freepik.com/premium-vector/car-chase-action-movie-poster-illustration_93487-5718.jpg'
-        ],
-        'Comedy': [
-          'https://img.freepik.com/premium-vector/comedy-movie-cinema-poster-design-template_153935-36.jpg',
-          'https://t3.ftcdn.net/jpg/04/07/01/00/360_F_407010016_WiqZoZfP66YdXxDpJbRidd4IItFo5DdF.jpg'
-        ],
-        'Drama': [
-          'https://t4.ftcdn.net/jpg/02/91/88/15/360_F_291881521_3LvdYEwZ6H3QZnx3HqaYzKbzKjRvWAiz.jpg',
-          'https://as1.ftcdn.net/v2/jpg/02/95/02/96/1000_F_295029616_J8bBK2SFvQRFLCxiBBf0oCZpGEnGCAIH.jpg'
-        ],
-        'Sci-Fi': [
-          'https://t4.ftcdn.net/jpg/04/30/16/09/360_F_430160966_I8PY3VXqLCxks3eYcBAmje1NQkPpNgtx.jpg',
-          'https://t4.ftcdn.net/jpg/05/11/07/43/360_F_511074341_fJ6CIgCiDML0LFGpijKWXcZD6RP5L02T.jpg'
-        ],
-        'Horror': [
-          'https://img.freepik.com/premium-vector/horror-movie-poster-template-design_92497-270.jpg',
-          'https://t3.ftcdn.net/jpg/04/38/92/54/360_F_438925433_xcZnZbgN4xnUxAVFGQYBl6JnZ1ZnKEUn.jpg'
-        ],
-        'Romance': [
-          'https://t4.ftcdn.net/jpg/04/18/72/55/360_F_418725584_wd70rn0mgQVtYAkHdnEVglWfBFm3I8OG.jpg',
-          'https://t3.ftcdn.net/jpg/04/39/44/08/360_F_439440883_rBWWu4CdxzFWQRb6bTDn2RY6iBWJuDUH.jpg'
-        ]
-      };
-      
-      // Check for specific genres to use more targeted placeholders
-      if (item.genre_ids && item.genre_ids.length > 0) {
-        // Map of genre IDs to genre names
-        const genreMap: {[key: number]: string} = {
-          28: 'Action', 35: 'Comedy', 18: 'Drama', 878: 'Sci-Fi', 
-          27: 'Horror', 10749: 'Romance', 
-          10759: 'Action', 10765: 'Sci-Fi'
+      // If still no image, use themed placeholders based on content type and title
+      if (!posterUrl) {
+        // Enhanced set of high-quality placeholder images with better variety
+        const placeholders = {
+          movie: [
+            // Cinematic poster placeholders for movies
+            'https://images.unsplash.com/photo-1485846234645-a62644f84728?q=80&w=500&auto=format&fit=crop',
+            'https://images.unsplash.com/photo-1440404653325-ab127d49abc1?q=80&w=500&auto=format&fit=crop',
+            'https://images.unsplash.com/photo-1594909122845-11baa439b7bf?q=80&w=500&auto=format&fit=crop',
+            'https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=500&auto=format&fit=crop',
+            'https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?q=80&w=500&auto=format&fit=crop',
+            'https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?q=80&w=500&auto=format&fit=crop',
+            'https://images.unsplash.com/photo-1542204165-65bf26472b9b?q=80&w=500&auto=format&fit=crop',
+            'https://images.unsplash.com/photo-1542204637-e67bc7d41e48?q=80&w=500&auto=format&fit=crop',
+            'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=500&auto=format&fit=crop',
+            'https://images.unsplash.com/photo-1595769816263-9b910be24d5f?q=80&w=500&auto=format&fit=crop'
+          ],
+          tv: [
+            // TV show themed placeholders
+            'https://images.unsplash.com/photo-1593784991095-a205069470b6?q=80&w=500&auto=format&fit=crop',
+            'https://images.unsplash.com/photo-1586170737463-89ed234d7b8c?q=80&w=500&auto=format&fit=crop',
+            'https://images.unsplash.com/photo-1529798856831-427dfd0a1ab1?q=80&w=500&auto=format&fit=crop',
+            'https://images.unsplash.com/photo-1522869635100-9f4c5e86aa37?q=80&w=500&auto=format&fit=crop',
+            'https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?q=80&w=500&auto=format&fit=crop',
+            'https://images.unsplash.com/photo-1588514727390-91fd5ebaef81?q=80&w=500&auto=format&fit=crop',
+            'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?q=80&w=500&auto=format&fit=crop',
+            'https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?q=80&w=500&auto=format&fit=crop',
+            'https://images.unsplash.com/photo-1512070904629-fa988dab2fe1?q=80&w=500&auto=format&fit=crop',
+            'https://images.unsplash.com/photo-1528928441742-b4ccac1bb04c?q=80&w=500&auto=format&fit=crop'
+          ]
         };
-        
-        // Find the first matching genre that has specific placeholders
-        for (const genreId of item.genre_ids) {
-          const genreName = genreMap[genreId];
-          if (genreName && genrePlaceholders[genreName]) {
-            const genreImages = genrePlaceholders[genreName];
-            return genreImages[Math.floor(Math.random() * genreImages.length)];
-          }
-        }
+
+        // Use consistent placeholder image based on content ID for same image on refresh
+        const imageSeed = Math.abs(item.id % 10); // Ensure it's an index within array bounds
+        posterUrl = placeholders[type][imageSeed];
       }
-      
-      // Create a deterministic index based on the content title
-      // This ensures the same content always gets the same placeholder
-      const titleSum = contentTitle.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-      const placeholderIndex = titleSum % placeholders[contentType].length;
-      
-      posterUrl = placeholders[contentType][placeholderIndex];
     }
+    
+    // Final fallback - if the system above fails, use a default image
+    if (!posterUrl) {
+      posterUrl = type === 'movie' 
+        ? 'https://images.unsplash.com/photo-1542204165-65bf26472b9b?q=80&w=500&auto=format&fit=crop'
+        : 'https://images.unsplash.com/photo-1593784991095-a205069470b6?q=80&w=500&auto=format&fit=crop';
+    }
+    
+    // Generate some fake Reddit buzz for now
+    const buzzLevels: ('Low' | 'Medium' | 'High')[] = ['Low', 'Medium', 'High'];
+    const buzzIndex = Math.floor(item.vote_average / 3.5); // 0-10 scale to 0-2 index
+    const redditBuzz = buzzLevels[Math.min(buzzIndex, 2)];
+
+    // Generate realistic Rotten Tomatoes score that correlates with TMDB rating
+    const baseScore = Math.round(item.vote_average * 10);
+    const variation = Math.floor(Math.random() * 15) - 5; // -5 to +10 variation
+    const rottenTomatoesScore = Math.max(0, Math.min(100, baseScore + variation));
+
+    return {
+      id: item.id,
+      title,
+      overview: item.overview,
+      posterPath: posterUrl,
+      type,
+      rating: item.vote_average,
+      genres: genres.length > 0 ? genres : ['Drama'], // Ensure we always have at least one genre
+      streamingPlatform: streamingPlatforms[randomPlatformIndex],
+      imdbRating: item.vote_average, // Using TMDB rating as IMDb for now
+      rottenTomatoesScore,
+      redditBuzz,
+      releaseYear: releaseYear || new Date().getFullYear(), // Ensure releaseYear always has a value
+    };
+  } catch (error) {
+    console.error('Error adapting content format:', error);
+    
+    // In case of error, return a minimal valid object with a placeholder image
+    return {
+      id: item.id || Math.floor(Math.random() * 100000),
+      title: item.title || item.name || 'Unknown Title',
+      overview: item.overview || 'No description available',
+      posterPath: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?q=80&w=500&auto=format&fit=crop',
+      type: 'movie',
+      rating: item.vote_average || 5,
+      genres: ['Drama'],
+      releaseYear: new Date().getFullYear(),
+      streamingPlatform: 'Netflix'
+    };
   }
-  
-  // Create partial content object for Reddit buzz
-  const contentForReddit: Partial<MovieTVShow> = {
-    id: item.id,
-    title: contentTitle,
-    type: contentType,
-    rating: item.vote_average,
-    releaseYear,
-    genres
-  };
-  
-  // Use real Reddit data with algorithm as fallback
-  // Note: This makes the function async
-  const redditBuzz = await getRedditBuzzWithFallback(contentForReddit as MovieTVShow);
-  
-  // Generate random Rotten Tomatoes score that correlates with TMDB rating
-  // This ensures higher-rated content also has higher RT scores
-  const baseScore = Math.round(item.vote_average * 10);
-  const variation = Math.floor(Math.random() * 15) - 5; // -5 to +10 variation
-  const rottenTomatoesScore = Math.max(0, Math.min(100, baseScore + variation));
-  
-  return {
-    id: item.id,
-    title: contentTitle,
-    overview: item.overview || '',
-    posterPath: posterUrl || '',
-    type: contentType,
-    rating: item.vote_average,
-    releaseYear,
-    genres,
-    streamingPlatform: streamingPlatforms[randomPlatformIndex],
-    imdbRating: item.vote_average,  // Use TMDB rating as IMDb proxy
-    rottenTomatoesScore,
-    redditBuzz
-  };
 };
 
 /**

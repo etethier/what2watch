@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '../contexts/AuthContext';
-import { FaUser, FaSignInAlt, FaUserPlus, FaHome, FaBars, FaTimes } from 'react-icons/fa';
+import { FaUser, FaSignInAlt, FaUserPlus, FaHome, FaBars, FaTimes, FaChartBar } from 'react-icons/fa';
 
 export default function Navbar() {
   const { user, loading } = useAuth();
@@ -33,6 +33,13 @@ export default function Navbar() {
                 className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50"
               >
                 <FaHome className="inline mr-1" /> Home
+              </Link>
+              
+              <Link 
+                href="/recommendation-analytics" 
+                className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50"
+              >
+                <FaChartBar className="inline mr-1" /> Analytics
               </Link>
               
               {!loading && (
@@ -93,6 +100,14 @@ export default function Navbar() {
               onClick={toggleMobileMenu}
             >
               <FaHome className="inline mr-2" /> Home
+            </Link>
+            
+            <Link
+              href="/recommendation-analytics"
+              className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50"
+              onClick={toggleMobileMenu}
+            >
+              <FaChartBar className="inline mr-2" /> Analytics
             </Link>
 
             {!loading && (

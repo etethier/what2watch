@@ -102,6 +102,23 @@ export default function Recommendations({ recommendations, onRetakeQuiz, session
     return true;
   });
 
+  // Split recommendations into top 3 and others
+  const topRecommendations = filteredRecommendations.slice(0, 3);
+  const otherRecommendations = filteredRecommendations.slice(3, visibleCount);
+
+  // Get rank display for top recommendations
+  const getRankDisplay = (rank: number) => {
+    const colors = ['text-yellow-500', 'text-gray-400', 'text-amber-600'];
+    const emojis = ['🥇', '🥈', '🥉'];
+    
+    return (
+      <div className="flex items-center mb-2">
+        <span className={`text-2xl font-bold ${colors[rank-1]} mr-2`}>{rank}</span>
+        <span className="text-xl">{emojis[rank-1]}</span>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 text-black p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
@@ -203,21 +220,6 @@ export default function Recommendations({ recommendations, onRetakeQuiz, session
           </div>
         </div>
 
-        {/* Top recommendations explanation */}
-        {filteredRecommendations.length > 0 && (
-          <div className="mb-8 bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg p-6 shadow-sm border border-pink-100">
-            <h3 className="text-xl font-bold text-gray-800 mb-2 flex items-center">
-              <FaTrophy className="text-yellow-500 mr-2" /> 
-              Top Recommendations
-            </h3>
-            <p className="text-gray-700">
-              Based on your quiz answers, we've curated a personalized list of content just for you! 
-              The <span className="font-semibold">top 3 recommendations</span> are highlighted with special badges 
-              and represent the best match for your preferences.
-            </p>
-          </div>
-        )}
-        
         {/* Loading indicator */}
         {isLoading && (
           <div className="text-center py-8">
@@ -241,37 +243,96 @@ export default function Recommendations({ recommendations, onRetakeQuiz, session
           </div>
         )}
         
-        {/* Recommendations grid using ContentCard component */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-          {filteredRecommendations.slice(0, visibleCount).map((item, index) => (
-            <ContentCard 
-              key={item.id} 
-              content={item} 
-              rank={index < 3 ? index + 1 : undefined}
-              className={index < 3 ? 'border-2 border-gradient-pink-purple shadow-lg transform hover:scale-105 transition-all duration-300' : 'hover:translate-y-[-5px] transition-transform'}
-            />
-          ))}
-        </div>
+        {/* TOP RECOMMENDATIONS SECTION */}
+        {topRecommendations.length > 0 && (
+          <div className="mb-12">
+            {/* Header for top picks section */}
+            <div className="mb-8 bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg p-6 shadow-sm border border-pink-100">
+              <h3 className="text-xl font-bold text-gray-800 mb-2 flex items-center">
+                <FaTrophy className="text-yellow-500 mr-2" /> 
+                Your Top 3 Picks
+              </h3>
+              <p className="text-gray-700 mb-2">
+                Our algorithm analyzed your quiz answers to find these perfect matches. 
+                They're specifically selected based on your genre preferences, rating thresholds, 
+                and current popularity trends.
+              </p>
+              <p className="text-xs text-gray-500 italic">
+                Pro tip: Click the "Watch Trailer" button to preview any recommendation before deciding what to watch.
+              </p>
+            </div>
+            
+            {/* Top 3 recommendations with large cards and prominent ranking */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {topRecommendations.map((item, index) => (
+                <div key={item.id} className="flex flex-col top-recommendation">
+                  {/* Rank display */}
+                  <div className="rank-badge">
+                    {getRankDisplay(index + 1)}
+                  </div>
+                  
+                  {/* Card with special styling */}
+                  <div className="flex-1 transform transition-all">
+                    <ContentCard 
+                      content={item} 
+                      rank={index + 1}
+                      className="border-2 border-gradient-pink-purple shadow-lg h-full"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {/* DIVIDER BETWEEN SECTIONS */}
+        {topRecommendations.length > 0 && otherRecommendations.length > 0 && (
+          <div className="relative my-12">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300"></div>
+            </div>
+            <div className="relative flex justify-center">
+              <span className="bg-gradient-to-r from-white via-gray-50 to-white px-4 text-lg font-medium text-gray-500">
+                More Recommendations
+              </span>
+            </div>
+          </div>
+        )}
+        
+        {/* OTHER RECOMMENDATIONS SECTION */}
+        {otherRecommendations.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+            {otherRecommendations.map((item) => (
+              <ContentCard 
+                key={item.id} 
+                content={item}
+                className="hover:translate-y-[-5px] transition-transform"
+              />
+            ))}
+          </div>
+        )}
         
         {/* Show More button - always visible */}
-        <div className="text-center mt-8">
-          <button
-            onClick={showMore}
-            className="px-6 py-3 bg-gradient-to-r from-pink-500 to-orange-400 text-white rounded-full hover:shadow-lg transition-all duration-300 flex items-center justify-center mx-auto"
-            disabled={isLoading || filteredRecommendations.length <= visibleCount}
-          >
-            {isLoading ? (
-              <>
-                <span className="animate-spin h-4 w-4 border-t-2 border-b-2 border-white rounded-full mr-2"></span>
-                Loading...
-              </>
-            ) : filteredRecommendations.length <= visibleCount ? (
-              'All recommendations loaded'
-            ) : (
-              'Show More Recommendations'
-            )}
-          </button>
-        </div>
+        {filteredRecommendations.length > 3 && (
+          <div className="text-center mt-8">
+            <button
+              onClick={showMore}
+              className="px-6 py-3 bg-gradient-to-r from-pink-500 to-orange-400 text-white rounded-full hover:shadow-lg transition-all duration-300 flex items-center justify-center mx-auto"
+              disabled={isLoading || filteredRecommendations.length <= visibleCount}
+            >
+              {isLoading ? (
+                <>
+                  <span className="animate-spin h-4 w-4 border-t-2 border-b-2 border-white rounded-full mr-2"></span>
+                  Loading...
+                </>
+              ) : filteredRecommendations.length <= visibleCount ? (
+                'All recommendations loaded'
+              ) : (
+                'Show More Recommendations'
+              )}
+            </button>
+          </div>
+        )}
         
         {/* Test page links */}
         <div className="text-center mt-16 text-sm text-gray-500 space-x-4">
