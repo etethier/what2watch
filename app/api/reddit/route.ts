@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server';
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const query = searchParams.get('q');
+  const fetchComments = searchParams.get('fetchComments') === 'true';
+  const commentsLimit = Number(searchParams.get('commentsLimit')) || 50;
   
   if (!query) {
     return NextResponse.json({ error: 'Missing query parameter' }, { status: 400 });
@@ -30,11 +32,65 @@ export async function GET(request: Request) {
       throw new Error(`Reddit API error: ${response.status}`);
     }
     
-    // Get the response as JSON
-    const data = await response.json();
+    // Get the search response as JSON
+    const searchData = await response.json();
+    const posts = searchData.data?.children || [];
     
-    // Return the response
-    return NextResponse.json(data);
+    // If we don't need comments, return just the search results
+    if (!fetchComments || posts.length === 0) {
+      return NextResponse.json(searchData);
+    }
+    
+    // Fetch comments for top posts (limit to 3 posts to avoid rate limiting)
+    const commentsData = [];
+    const postsToFetch = Math.min(3, posts.length);
+    
+    for (let i = 0; i < postsToFetch; i++) {
+      const post = posts[i];
+      if (!post?.data?.permalink) continue;
+      
+      try {
+        // Construct comment URL - remove the /r/subreddit/comments/ prefix
+        const commentUrl = `https://www.reddit.com${post.data.permalink}.json?limit=${commentsLimit}`;
+        
+        // Add timeout for comment fetch
+        const commentController = new AbortController();
+        const commentTimeoutId = setTimeout(() => commentController.abort(), 5000); // shorter timeout
+        
+        const commentResponse = await fetch(commentUrl, {
+          headers: {
+            'User-Agent': 'What2Watch/1.0 (Web Application; +https://what2watch.example.com)'
+          },
+          signal: commentController.signal
+        });
+        
+        clearTimeout(commentTimeoutId);
+        
+        if (commentResponse.ok) {
+          const commentJson = await commentResponse.json();
+          
+          // Add post info to comments data
+          commentsData.push({
+            postId: post.data.id,
+            postTitle: post.data.title,
+            postUrl: post.data.permalink,
+            commentsData: commentJson
+          });
+        }
+      } catch (commentError) {
+        console.error('Error fetching comments:', commentError);
+        // Continue with other posts even if this one fails
+      }
+      
+      // Small delay to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    
+    // Return combined data
+    return NextResponse.json({
+      ...searchData,
+      commentsData
+    });
   } catch (error) {
     console.error('Error proxying Reddit request:', error);
     return NextResponse.json(

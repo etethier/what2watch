@@ -2,14 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { MovieTVShow } from '../types';
+import { MovieTVShow, SentimentType, EnhancedBuzzType } from '../types';
 import { FaArrowLeft, FaReddit, FaSmile, FaMeh, FaFrown } from 'react-icons/fa';
 import { 
   estimateRedditBuzz, 
   getRedditBuzzForTitle, 
-  batchGetRedditBuzz, 
-  SentimentType,
-  EnhancedBuzzType 
+  batchGetRedditBuzz
 } from '../services/reddit-service';
 
 // Sample content for testing
@@ -114,8 +112,8 @@ export default function RedditTestPage() {
     setApiStatus('idle');
     
     try {
-      // Use the batch function from our service
-      const results = await batchGetRedditBuzz(content);
+      // Use the batch function from our service with comment analysis
+      const results = await batchGetRedditBuzz(content, true);
       setRedditData(results);
       
       // Check if we have any successful results
@@ -396,6 +394,83 @@ export default function RedditTestPage() {
                                   r/{sub.name} ({sub.count})
                                 </span>
                               ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* New section for trending topics */}
+                        {redditData[item.id].trendingTopics?.length > 0 && (
+                          <div className="mt-3">
+                            <p className="text-gray-600 font-semibold">Trending Topics:</p>
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {redditData[item.id].trendingTopics.map((topic: any, i: number) => {
+                                let topicColor = "bg-gray-200 text-gray-800";
+                                if (topic.sentiment === 'Positive') topicColor = "bg-green-100 text-green-800";
+                                if (topic.sentiment === 'Negative') topicColor = "bg-red-100 text-red-800";
+                                
+                                return (
+                                  <span 
+                                    key={i} 
+                                    className={`${topicColor} text-xs px-2 py-1 rounded flex items-center`}
+                                    title={`Sentiment: ${topic.sentiment} (${topic.sentimentScore.toFixed(2)})`}
+                                  >
+                                    {topic.term} ({topic.count})
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* New section for comment sentiment analysis */}
+                        {redditData[item.id].commentSentiment && redditData[item.id].commentSentiment.totalComments > 0 && (
+                          <div className="mt-3 border-t pt-2">
+                            <p className="text-gray-600 font-semibold">Comment Analysis:</p>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-1 text-xs">
+                              <div className="bg-gray-100 p-1 rounded">
+                                <span className="text-gray-500">Comments:</span>
+                                <div>{redditData[item.id].commentSentiment.totalComments}</div>
+                              </div>
+                              
+                              <div className="bg-green-50 p-1 rounded">
+                                <span className="text-gray-500">Positive:</span>
+                                <div>{redditData[item.id].commentSentiment.positiveComments}</div>
+                              </div>
+                              
+                              <div className="bg-red-50 p-1 rounded">
+                                <span className="text-gray-500">Negative:</span>
+                                <div>{redditData[item.id].commentSentiment.negativeComments}</div>
+                              </div>
+                              
+                              <div className="bg-yellow-50 p-1 rounded">
+                                <span className="text-gray-500">Neutral:</span>
+                                <div>{redditData[item.id].commentSentiment.neutralComments}</div>
+                              </div>
+                            </div>
+                            
+                            {redditData[item.id].commentSentiment.keywords?.length > 0 && (
+                              <div className="mt-2">
+                                <p className="text-gray-500 text-xs">Comment Keywords:</p>
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {redditData[item.id].commentSentiment.keywords.slice(0, 8).map((kw: any, i: number) => (
+                                    <span key={i} className="bg-blue-50 text-blue-800 text-xs px-1.5 py-0.5 rounded">
+                                      {kw.term} ({kw.count})
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            
+                            <div className="mt-2 text-xs text-gray-500">
+                              Overall comment sentiment: 
+                              <span className={
+                                redditData[item.id].commentSentiment.sentimentType === 'Positive' ? 'text-green-600 font-semibold ml-1' : 
+                                redditData[item.id].commentSentiment.sentimentType === 'Negative' ? 'text-red-600 font-semibold ml-1' : 
+                                'text-yellow-600 font-semibold ml-1'
+                              }>
+                                {redditData[item.id].commentSentiment.sentimentType} (
+                                {redditData[item.id].commentSentiment.averageSentiment.toFixed(2)})
+                              </span>
                             </div>
                           </div>
                         )}

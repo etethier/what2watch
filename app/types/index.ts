@@ -28,6 +28,26 @@ export type EnhancedBuzzType =
   | 'Niche Interest'
   | 'Low Buzz';
 
+// Trending topic interface for Reddit analysis
+export interface TrendingTopic {
+  term: string;
+  count: number;
+  sentiment: SentimentType;
+  sentimentScore: number;
+}
+
+// Comment sentiment analysis results
+export interface CommentSentimentAnalysis {
+  totalComments: number;
+  analyzedComments: number;
+  averageSentiment: number;
+  sentimentType: SentimentType;
+  positiveComments: number;
+  negativeComments: number;
+  neutralComments: number;
+  keywords: {term: string, count: number}[];
+}
+
 export interface MovieTVShow {
   id: number;
   title: string;
@@ -43,4 +63,6 @@ export interface MovieTVShow {
   redditBuzz?: 'Low' | 'Medium' | 'High' | EnhancedBuzzType;
   redditSentiment?: SentimentType;
   sentimentScore?: number;
+  trendingTopics?: TrendingTopic[];
+  commentSentiment?: CommentSentimentAnalysis;
 } 
