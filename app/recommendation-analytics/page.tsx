@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { FaArrowLeft, FaThumbsUp, FaThumbsDown, FaChartBar, FaCheck, FaTimes } from 'react-icons/fa';
+import { FaArrowLeft, FaThumbsUp, FaThumbsDown, FaChartBar, FaCheck, FaTimes, FaFlask } from 'react-icons/fa';
 
 interface FeedbackItem {
   contentId: number;
@@ -11,6 +11,7 @@ interface FeedbackItem {
   rank: number;
   timestamp: string;
   genres: string[];
+  algorithm?: string; // 'A' or 'B' for tracking which algorithm was used
 }
 
 export default function RecommendationAnalytics() {
@@ -21,7 +22,20 @@ export default function RecommendationAnalytics() {
     dislikedCount: 0,
     accuracyRate: 0,
     topPickAccuracyRate: 0,
-    genreData: {} as Record<string, { liked: number, disliked: number, total: number }>
+    genreData: {} as Record<string, { liked: number, disliked: number, total: number }>,
+    // A/B testing stats
+    algorithmA: {
+      total: 0,
+      liked: 0,
+      accuracy: 0,
+      topPickAccuracy: 0,
+    },
+    algorithmB: {
+      total: 0,
+      liked: 0,
+      accuracy: 0,
+      topPickAccuracy: 0,
+    }
   });
   
   useEffect(() => {
@@ -58,13 +72,38 @@ export default function RecommendationAnalytics() {
       });
     });
     
+    // A/B Testing statistics
+    const algorithmAData = data.filter(item => item.algorithm === 'A');
+    const algorithmBData = data.filter(item => item.algorithm === 'B');
+    
+    const algorithmALiked = algorithmAData.filter(item => item.type === 'liked').length;
+    const algorithmBLiked = algorithmBData.filter(item => item.type === 'liked').length;
+    
+    const algorithmATopPicks = algorithmAData.filter(item => item.rank > 0 && item.rank <= 3);
+    const algorithmBTopPicks = algorithmBData.filter(item => item.rank > 0 && item.rank <= 3);
+    
+    const algorithmATopLiked = algorithmATopPicks.filter(item => item.type === 'liked').length;
+    const algorithmBTopLiked = algorithmBTopPicks.filter(item => item.type === 'liked').length;
+    
     setStats({
       totalFeedback: data.length,
       likedCount,
       dislikedCount: data.length - likedCount,
       accuracyRate: data.length > 0 ? (likedCount / data.length) * 100 : 0,
       topPickAccuracyRate: topPicksData.length > 0 ? (topPicksLiked / topPicksData.length) * 100 : 0,
-      genreData
+      genreData,
+      algorithmA: {
+        total: algorithmAData.length,
+        liked: algorithmALiked,
+        accuracy: algorithmAData.length > 0 ? (algorithmALiked / algorithmAData.length) * 100 : 0,
+        topPickAccuracy: algorithmATopPicks.length > 0 ? (algorithmATopLiked / algorithmATopPicks.length) * 100 : 0,
+      },
+      algorithmB: {
+        total: algorithmBData.length,
+        liked: algorithmBLiked,
+        accuracy: algorithmBData.length > 0 ? (algorithmBLiked / algorithmBData.length) * 100 : 0,
+        topPickAccuracy: algorithmBTopPicks.length > 0 ? (algorithmBTopLiked / algorithmBTopPicks.length) * 100 : 0,
+      }
     });
   };
   
@@ -79,7 +118,19 @@ export default function RecommendationAnalytics() {
           dislikedCount: 0,
           accuracyRate: 0,
           topPickAccuracyRate: 0,
-          genreData: {}
+          genreData: {},
+          algorithmA: {
+            total: 0,
+            liked: 0,
+            accuracy: 0,
+            topPickAccuracy: 0,
+          },
+          algorithmB: {
+            total: 0,
+            liked: 0,
+            accuracy: 0,
+            topPickAccuracy: 0,
+          }
         });
       }
     }
@@ -153,6 +204,80 @@ export default function RecommendationAnalytics() {
                   <div className="text-3xl font-bold text-gray-700">{stats.totalFeedback}</div>
                 </div>
               </div>
+
+              {/* A/B Testing Panel */}
+              <div className="bg-purple-50 p-4 rounded-lg border border-purple-100 mb-6">
+                <h3 className="text-lg font-semibold text-purple-700 mb-3 flex items-center">
+                  <FaFlask className="mr-2" />
+                  A/B Testing Results
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Algorithm A */}
+                  <div className="bg-white p-4 rounded-lg border border-gray-200">
+                    <h4 className="font-semibold text-gray-700 mb-2">Algorithm A (Original)</h4>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Sample Size:</span> 
+                        <span className="font-medium">{stats.algorithmA.total} recommendations</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Overall Accuracy:</span> 
+                        <span className={`font-medium ${stats.algorithmA.accuracy > stats.algorithmB.accuracy ? 'text-green-600' : ''}`}>
+                          {stats.algorithmA.accuracy.toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Top 3 Accuracy:</span> 
+                        <span className={`font-medium ${stats.algorithmA.topPickAccuracy > stats.algorithmB.topPickAccuracy ? 'text-green-600' : ''}`}>
+                          {stats.algorithmA.topPickAccuracy.toFixed(1)}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Algorithm B */}
+                  <div className="bg-white p-4 rounded-lg border border-gray-200">
+                    <h4 className="font-semibold text-gray-700 mb-2">Algorithm B (Alternative)</h4>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Sample Size:</span> 
+                        <span className="font-medium">{stats.algorithmB.total} recommendations</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Overall Accuracy:</span> 
+                        <span className={`font-medium ${stats.algorithmB.accuracy > stats.algorithmA.accuracy ? 'text-green-600' : ''}`}>
+                          {stats.algorithmB.accuracy.toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Top 3 Accuracy:</span> 
+                        <span className={`font-medium ${stats.algorithmB.topPickAccuracy > stats.algorithmA.topPickAccuracy ? 'text-green-600' : ''}`}>
+                          {stats.algorithmB.topPickAccuracy.toFixed(1)}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Comparison Summary */}
+                {(stats.algorithmA.total > 0 && stats.algorithmB.total > 0) && (
+                  <div className="mt-4 p-3 bg-white rounded border border-purple-100">
+                    <h4 className="font-medium text-purple-700 mb-1">Summary Insights:</h4>
+                    <p className="text-sm text-gray-700">
+                      {stats.algorithmB.accuracy > stats.algorithmA.accuracy 
+                        ? `Algorithm B is performing better with ${(stats.algorithmB.accuracy - stats.algorithmA.accuracy).toFixed(1)}% higher accuracy.`
+                        : stats.algorithmA.accuracy > stats.algorithmB.accuracy
+                          ? `Algorithm A is performing better with ${(stats.algorithmA.accuracy - stats.algorithmB.accuracy).toFixed(1)}% higher accuracy.`
+                          : 'Both algorithms are performing equally well.'}
+                      {' '}
+                      {stats.algorithmA.total < 50 || stats.algorithmB.total < 50 
+                        ? 'More data is needed for conclusive results.' 
+                        : 'Sample size is sufficient for analysis.'}
+                    </p>
+                  </div>
+                )}
+              </div>
               
               {/* Genre Performance */}
               <h3 className="font-semibold text-gray-700 mb-2">Accuracy by Genre</h3>
@@ -207,6 +332,7 @@ export default function RecommendationAnalytics() {
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Accurate?</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rank</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Algorithm</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Genres</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                     </tr>
@@ -231,6 +357,17 @@ export default function RecommendationAnalytics() {
                             <div className="text-sm text-gray-500">
                               {item.rank > 0 ? `#${item.rank}` : '-'}
                             </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {item.algorithm ? (
+                              <span className={`px-2 py-0.5 rounded-full text-xs ${
+                                item.algorithm === 'A' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'
+                              }`}>
+                                {item.algorithm}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400 text-sm">-</span>
+                            )}
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex flex-wrap gap-1">
@@ -273,6 +410,7 @@ export default function RecommendationAnalytics() {
             <li>Identify which genres are being recommended accurately</li>
             <li>Find patterns in recommendations users find inaccurate</li>
             <li>Track the accuracy of your top recommendations vs. others</li>
+            <li>Compare the performance of different recommendation algorithms (A/B testing)</li>
             <li>Adjust your algorithm based on this feedback</li>
           </ul>
         </div>

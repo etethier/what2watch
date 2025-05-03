@@ -122,22 +122,76 @@ export const extractPreferences = (quizAnswers: QuizAnswer[]) => {
  */
 export const getRecommendations = async (quizAnswers: QuizAnswer[]) => {
   try {
+    console.log('Getting recommendations with quiz answers:', quizAnswers);
+    
     // Extract user preferences
     const preferences = extractPreferences(quizAnswers);
+    console.log('Extracted preferences:', preferences);
+    
+    // Log the preferences to see what's being used
+    console.log('Using preferences for recommendation:', {
+      mood: preferences.mood,
+      contentType: preferences.contentType,
+      genres: preferences.genres,
+      duration: preferences.duration,
+      era: preferences.era
+    });
     
     // Fetch content items from TMDB based on genres
     let results: tmdbService.TMDBContentItem[] = [];
     
     // Get content for each genre with proper media type
     for (const genre of preferences.genres) {
-      const movieResults = await tmdbService.discoverMovies({ with_genres: genre });
-      const tvResults = await tmdbService.discoverTVShows({ with_genres: genre });
+      console.log(`Fetching content for genre ID ${genre}`);
       
-      results = [
-        ...results,
-        ...movieResults.results.map(item => ({ ...item, media_type: 'movie' as const })),
-        ...tvResults.results.map(item => ({ ...item, media_type: 'tv' as const }))
-      ];
+      // Filter by media type based on user preference
+      if (preferences.contentType === 'both' || preferences.contentType === 'movie') {
+        const movieResults = await tmdbService.discoverMovies({ 
+          with_genres: genre,
+          // Add sorting by popularity to get diverse results
+          sort_by: 'popularity.desc'
+        });
+        console.log(`Found ${movieResults.results.length} movies for genre ${genre}`);
+        results = [
+          ...results,
+          ...movieResults.results.map(item => ({ ...item, media_type: 'movie' as const }))
+        ];
+      }
+      
+      if (preferences.contentType === 'both' || preferences.contentType === 'tvShow') {
+        const tvResults = await tmdbService.discoverTVShows({ 
+          with_genres: genre,
+          // Add sorting by popularity to get diverse results
+          sort_by: 'popularity.desc'
+        });
+        console.log(`Found ${tvResults.results.length} TV shows for genre ${genre}`);
+        results = [
+          ...results,
+          ...tvResults.results.map(item => ({ ...item, media_type: 'tv' as const }))
+        ];
+      }
+    }
+    
+    // If we didn't get results from genre search, try a broader approach
+    if (results.length < 5) {
+      console.log('Not enough genre-specific results, trying broader search');
+      
+      // Try to get trending/popular content as a fallback
+      if (preferences.contentType === 'both' || preferences.contentType === 'movie') {
+        const popularMovies = await tmdbService.getPopularMovies();
+        results = [
+          ...results,
+          ...popularMovies.results.map(item => ({ ...item, media_type: 'movie' as const }))
+        ];
+      }
+      
+      if (preferences.contentType === 'both' || preferences.contentType === 'tvShow') {
+        const popularTV = await tmdbService.getPopularTVShows();
+        results = [
+          ...results,
+          ...popularTV.results.map(item => ({ ...item, media_type: 'tv' as const }))
+        ];
+      }
     }
     
     // Deduplicate results
@@ -150,7 +204,9 @@ export const getRecommendations = async (quizAnswers: QuizAnswer[]) => {
       return true;
     });
     
-    // Calculate content relevance based on genres
+    console.log(`After deduplication, have ${results.length} results`);
+    
+    // Calculate content relevance based on user preferences
     const relevanceScores: Record<number, number> = {};
     results.forEach(item => {
       let score = 0;
@@ -158,17 +214,17 @@ export const getRecommendations = async (quizAnswers: QuizAnswer[]) => {
       // Match genres (explicit match)
       item.genre_ids?.forEach(genreId => {
         if (preferences.genres.includes(genreId.toString())) {
-          score += 20;
+          score += 20; // Higher weight for genre match
         }
       });
       
-      // Popularity bonus
+      // Popularity bonus (with a cap to prevent overwhelming other factors)
       score += Math.min(item.popularity / 10, 10);
       
       // Rating bonus
       score += item.vote_average * 2;
       
-      // Match release year preference
+      // Match era preference
       if (preferences.era === 'new' && item.release_date) {
         const year = parseInt(item.release_date.substring(0, 4));
         if (year >= new Date().getFullYear() - 3) {
@@ -181,18 +237,19 @@ export const getRecommendations = async (quizAnswers: QuizAnswer[]) => {
         }
       }
       
-      // Match content type preference
+      // Match content type preference with higher weight
       if (preferences.contentType === 'movie' && item.media_type === 'movie') {
-        score += 10;
-      } else if (preferences.contentType === 'tv' && item.media_type === 'tv') {
-        score += 10;
+        score += 15;
+      } else if (preferences.contentType === 'tvShow' && item.media_type === 'tv') {
+        score += 15;
       }
+      
+      // Add some randomization to avoid always recommending the same items
+      // This helps break ties between similar items
+      score += Math.random() * 5;
       
       relevanceScores[item.id] = score;
     });
-    
-    // Sort by popularity first for initial ranking
-    results.sort((a, b) => b.popularity - a.popularity);
     
     // Convert all the raw results to our format
     const contentItems = await Promise.all(results.map(item => adaptToWhat2WatchFormat(item)));
@@ -224,9 +281,12 @@ export const getRecommendations = async (quizAnswers: QuizAnswer[]) => {
       rec.rank = index + 1;
     });
     
+    console.log(`Returning ${Math.min(recommendations.length, 10)} recommendations`);
+    
     return recommendations.slice(0, 10);
   } catch (error) {
     console.error('Error getting recommendations:', error);
+    // Return an empty array instead of falling back to sample data
     return [];
   }
 };
@@ -240,7 +300,7 @@ export const adaptToWhat2WatchFormat = async (item: tmdbService.TMDBContentItem)
   try {
     // Basic adaptation
     const title = item.title || item.name || 'Unknown Title';
-    const type = item.media_type === 'tv' ? 'tv' : 'movie';
+    const type = item.media_type === 'tv' ? 'tv' as const : 'movie' as const;
     const releaseYear = item.release_date 
       ? parseInt(item.release_date.substring(0, 4)) 
       : item.first_air_date 
@@ -352,7 +412,7 @@ export const adaptToWhat2WatchFormat = async (item: tmdbService.TMDBContentItem)
       title: item.title || item.name || 'Unknown Title',
       overview: item.overview || 'No description available',
       posterPath: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?q=80&w=500&auto=format&fit=crop',
-      type: 'movie',
+      type: item.media_type === 'tv' ? 'tv' as const : 'movie' as const,
       rating: item.vote_average || 5,
       genres: ['Drama'],
       releaseYear: new Date().getFullYear(),
@@ -388,6 +448,340 @@ export const getTrendingContent = async () => {
     return await Promise.all(results.map(item => adaptToWhat2WatchFormat(item)));
   } catch (error) {
     console.error('Error getting trending content:', error);
+    return [];
+  }
+};
+
+/**
+ * Get recommendations with A/B testing between different algorithms
+ * @param quizAnswers - Array of quiz answers from the user
+ * @param testGroup - Optional test group identifier (A or B)
+ * @returns Promise with recommendation results
+ */
+export const getRecommendationsWithABTest = async (quizAnswers: any[], testGroup?: string) => {
+  try {
+    // If testGroup is not provided, randomly assign one
+    const group = testGroup || (Math.random() > 0.5 ? 'A' : 'B');
+    
+    // Create a record of which algorithm was used
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('recommendation_algorithm', group);
+    }
+    
+    // Group A: Current algorithm
+    if (group === 'A') {
+      console.log('Using algorithm A: Standard recommendations');
+      return getRecommendations(quizAnswers);
+    }
+    
+    // Group B: Enhanced algorithm with multiple TMDB endpoints
+    console.log('Using algorithm B: Enhanced recommendations with multiple TMDB endpoints');
+    return getEnhancedRecommendations(quizAnswers);
+  } catch (error) {
+    console.error('Error getting recommendations with A/B test:', error);
+    return [];
+  }
+};
+
+/**
+ * Get enhanced recommendations using multiple TMDB endpoints
+ * @param quizAnswers - Array of quiz answers from the user
+ * @returns Promise with enhanced recommendation results
+ */
+export const getEnhancedRecommendations = async (quizAnswers: QuizAnswer[]) => {
+  try {
+    // Extract user preferences
+    const preferences = extractPreferences(quizAnswers);
+    
+    // Determine content type
+    const contentType = preferences.contentType === 'both' ? 'both' : 
+                       (preferences.contentType === 'movie' ? 'movie' : 'tv');
+    
+    // Step 1: Get comprehensive content as a starting point
+    let results = await tmdbService.fetchComprehensiveContent(contentType as 'movie' | 'tv' | 'both', 2);
+    
+    // Step 2: Get content for each genre with proper media type
+    for (const genre of preferences.genres) {
+      if (contentType === 'movie' || contentType === 'both') {
+        const genreMovies = await tmdbService.getContentByGenre(
+          parseInt(genre), 
+          'movie'
+        );
+        results = [...results, ...genreMovies.results];
+      }
+      
+      if (contentType === 'tv' || contentType === 'both') {
+        const genreTV = await tmdbService.getContentByGenre(
+          parseInt(genre), 
+          'tv'
+        );
+        results = [...results, ...genreTV.results];
+      }
+    }
+    
+    // Step 3: If user prefers new content, get upcoming movies
+    if (preferences.era === 'new' && (contentType === 'movie' || contentType === 'both')) {
+      const upcomingMovies = await tmdbService.getUpcomingMovies();
+      results = [...results, ...upcomingMovies.results];
+    }
+    
+    // Step 4: If user prefers classic content, get content by time period
+    if (preferences.era === 'classic') {
+      const classicYearRanges = [[1970, 1979], [1980, 1989], [1990, 1999]];
+      
+      for (const [startYear, endYear] of classicYearRanges) {
+        if (contentType === 'movie' || contentType === 'both') {
+          const classicMovies = await tmdbService.getContentByTimePeriod(
+            startYear, 
+            endYear, 
+            'movie'
+          );
+          results = [...results, ...classicMovies.results];
+        }
+        
+        if (contentType === 'tv' || contentType === 'both') {
+          const classicTV = await tmdbService.getContentByTimePeriod(
+            startYear, 
+            endYear, 
+            'tv'
+          );
+          results = [...results, ...classicTV.results];
+        }
+      }
+    }
+    
+    // Step 5: Deduplicate results
+    const uniqueIds = new Set();
+    results = results.filter(item => {
+      if (uniqueIds.has(item.id)) {
+        return false;
+      }
+      uniqueIds.add(item.id);
+      return true;
+    });
+    
+    // Step 6: Calculate content relevance based on preferences
+    const relevanceScores: Record<number, number> = {};
+    results.forEach(item => {
+      let score = 0;
+      
+      // Match genres (explicit match)
+      item.genre_ids?.forEach(genreId => {
+        if (preferences.genres.includes(genreId.toString())) {
+          score += 20;
+        }
+      });
+      
+      // Popularity bonus
+      score += Math.min(item.popularity / 10, 10);
+      
+      // Rating bonus
+      score += item.vote_average * 2;
+      
+      // Top-rated bonus
+      if (item.vote_average >= 8 && item.vote_count > 1000) {
+        score += 15;
+      }
+      
+      // Match release year preference
+      if (preferences.era === 'new' && item.release_date) {
+        const year = parseInt(item.release_date.substring(0, 4));
+        if (year >= new Date().getFullYear() - 3) {
+          score += 15;
+        }
+      } else if (preferences.era === 'classic' && item.release_date) {
+        const year = parseInt(item.release_date.substring(0, 4));
+        if (year < 2000) {
+          score += 15;
+        }
+      }
+      
+      // Match content type preference
+      if (preferences.contentType === 'movie' && item.media_type === 'movie') {
+        score += 10;
+      } else if (preferences.contentType === 'tv' && item.media_type === 'tv') {
+        score += 10;
+      }
+      
+      relevanceScores[item.id] = score;
+    });
+    
+    // Step 7: Convert all the raw results to our format
+    const contentItems = await Promise.all(results.map(item => adaptToWhat2WatchFormat(item)));
+    
+    // Step 8: Apply final scoring and ranking
+    const recommendations = contentItems.map((content) => {
+      // Ensure content is treated as MovieTVShow
+      const typedContent = content as MovieTVShow;
+      const relevanceScore = relevanceScores[typedContent.id] || 0;
+      
+      // Add bonus points for high Reddit buzz
+      let buzzBonus = 0;
+      if (typedContent.redditBuzz === 'High') buzzBonus = 10;
+      else if (typedContent.redditBuzz === 'Medium') buzzBonus = 5;
+      
+      // Final score combines relevance, rating, and Reddit buzz
+      const finalScore = relevanceScore + (typedContent.rating / 2) + buzzBonus;
+      
+      return {
+        content: typedContent,
+        relevance_score: finalScore,
+        rank: 0 // Will be assigned after sorting
+      };
+    });
+    
+    // Step 9: Sort by final score and assign ranks
+    recommendations.sort((a, b) => b.relevance_score - a.relevance_score);
+    recommendations.forEach((rec, index) => {
+      rec.rank = index + 1;
+    });
+    
+    // Return top 20 recommendations
+    return recommendations.slice(0, 20);
+  } catch (error) {
+    console.error('Error getting enhanced recommendations:', error);
+    return [];
+  }
+};
+
+/**
+ * Store content items in Supabase database for faster retrieval
+ * @param contentItems - Array of MovieTVShow items to store
+ * @returns Promise with success status
+ */
+export const storeContentInDatabase = async (contentItems: MovieTVShow[]): Promise<boolean> => {
+  try {
+    // Ensure we have the supabase client
+    const { supabase } = await import('../services/supabase');
+    
+    if (!supabase) {
+      console.error('Supabase client not available');
+      return false;
+    }
+    
+    // Prepare the data for insertion
+    const formattedData = contentItems.map(item => ({
+      id: item.id,
+      title: item.title,
+      overview: item.overview,
+      poster_path: item.posterPath,
+      type: item.type,
+      rating: item.rating,
+      genres: item.genres,
+      release_year: item.releaseYear,
+      streaming_platform: item.streamingPlatform,
+      imdb_rating: item.imdbRating,
+      rotten_tomatoes_score: item.rottenTomatoesScore,
+      reddit_buzz: item.redditBuzz,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }));
+    
+    // Insert the data, using upsert to avoid duplicates
+    const { error } = await supabase
+      .from('content_library')
+      .upsert(formattedData, { onConflict: 'id' });
+    
+    if (error) {
+      console.error('Error storing content in database:', error);
+      return false;
+    }
+    
+    console.log(`Successfully stored ${contentItems.length} content items in database`);
+    return true;
+  } catch (error) {
+    console.error('Unexpected error storing content in database:', error);
+    return false;
+  }
+};
+
+/**
+ * Get content from Supabase database
+ * @param filters - Optional filters to apply
+ * @returns Promise with content items
+ */
+export const getContentFromDatabase = async (filters?: {
+  type?: 'movie' | 'tv',
+  genreContains?: string[],
+  releaseYearGte?: number,
+  releaseYearLte?: number,
+  ratingGte?: number,
+  limit?: number
+}): Promise<MovieTVShow[]> => {
+  try {
+    // Ensure we have the supabase client
+    const { supabase } = await import('../services/supabase');
+    
+    if (!supabase) {
+      console.error('Supabase client not available');
+      return [];
+    }
+    
+    // Start building the query
+    let query = supabase.from('content_library').select('*');
+    
+    // Apply filters if provided
+    if (filters) {
+      if (filters.type) {
+        query = query.eq('type', filters.type);
+      }
+      
+      if (filters.genreContains && filters.genreContains.length > 0) {
+        // This assumes genres is stored as an array in Supabase
+        // and uses the "array contains" operator
+        query = query.contains('genres', filters.genreContains);
+      }
+      
+      if (filters.releaseYearGte) {
+        query = query.gte('release_year', filters.releaseYearGte);
+      }
+      
+      if (filters.releaseYearLte) {
+        query = query.lte('release_year', filters.releaseYearLte);
+      }
+      
+      if (filters.ratingGte) {
+        query = query.gte('rating', filters.ratingGte);
+      }
+      
+      if (filters.limit) {
+        query = query.limit(filters.limit);
+      }
+    }
+    
+    // Execute the query
+    const { data, error } = await query;
+    
+    if (error) {
+      console.error('Error fetching content from database:', error);
+      return [];
+    }
+    
+    if (!data || data.length === 0) {
+      console.log('No content found in database matching filters');
+      return [];
+    }
+    
+    // Convert database format to MovieTVShow format
+    const contentItems: MovieTVShow[] = data.map(item => ({
+      id: item.id,
+      title: item.title,
+      overview: item.overview,
+      posterPath: item.poster_path,
+      type: item.type,
+      rating: item.rating,
+      genres: item.genres,
+      releaseYear: item.release_year,
+      streamingPlatform: item.streaming_platform,
+      imdbRating: item.imdb_rating,
+      rottenTomatoesScore: item.rotten_tomatoes_score,
+      redditBuzz: item.reddit_buzz
+    }));
+    
+    console.log(`Retrieved ${contentItems.length} content items from database`);
+    return contentItems;
+  } catch (error) {
+    console.error('Unexpected error getting content from database:', error);
     return [];
   }
 }; 

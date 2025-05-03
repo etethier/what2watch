@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { FaStar, FaTv, FaFilm, FaTrophy, FaReddit, FaFire, FaComments, FaHeart, FaRegHeart, FaBookmark, FaRegBookmark, FaThumbsUp, FaThumbsDown, FaInfoCircle } from 'react-icons/fa';
+import { FaStar, FaTv, FaFilm, FaTrophy, FaReddit, FaFire, FaComments, FaHeart, FaRegHeart, FaBookmark, FaRegBookmark, FaThumbsUp, FaThumbsDown, FaInfoCircle, FaImdb, FaPlay } from 'react-icons/fa';
 import { IoFastFoodOutline } from 'react-icons/io5';
 import { BsChatSquareQuote, BsExclamationTriangle } from 'react-icons/bs';
+import { SiRottentomatoes } from 'react-icons/si';
 import { MovieTVShow, EnhancedBuzzType } from '../types';
 import TrailerButton from './TrailerButton';
 
@@ -55,7 +56,10 @@ const getRedditBuzzStyle = (buzzType?: EnhancedBuzzType | 'High' | 'Medium' | 'L
         text: 'text-green-700',
         border: 'border-green-200',
         icon: <FaReddit className="text-green-500 mr-1" />,
-        label: 'Trending Positive'
+        label: 'Reddit: Very Popular',
+        shortLabel: 'Hot on Reddit',
+        tooltip: 'Highly discussed with positive sentiment on Reddit',
+        meter: 4
       };
     case 'Trending Negative':
       return {
@@ -63,7 +67,10 @@ const getRedditBuzzStyle = (buzzType?: EnhancedBuzzType | 'High' | 'Medium' | 'L
         text: 'text-red-700',
         border: 'border-red-200',
         icon: <FaReddit className="text-red-500 mr-1" />,
-        label: 'Trending Negative'
+        label: 'Reddit: Criticized',
+        shortLabel: 'Criticized',
+        tooltip: 'Widely discussed with negative sentiment on Reddit',
+        meter: 4
       };
     case 'Trending Mixed':
       return {
@@ -71,7 +78,10 @@ const getRedditBuzzStyle = (buzzType?: EnhancedBuzzType | 'High' | 'Medium' | 'L
         text: 'text-orange-700',
         border: 'border-orange-200',
         icon: <FaReddit className="text-orange-500 mr-1" />,
-        label: 'Trending Mixed'
+        label: 'Reddit: Debated',
+        shortLabel: 'Debated',
+        tooltip: 'Popular with mixed opinions on Reddit',
+        meter: 4
       };
     case 'Popular Discussion':
       return {
@@ -79,7 +89,10 @@ const getRedditBuzzStyle = (buzzType?: EnhancedBuzzType | 'High' | 'Medium' | 'L
         text: 'text-blue-700',
         border: 'border-blue-200',
         icon: <FaComments className="text-blue-500 mr-1" />,
-        label: 'Popular Discussion'
+        label: 'Reddit: Talked About',
+        shortLabel: 'Discussed',
+        tooltip: 'Active discussions on Reddit communities',
+        meter: 3
       };
     case 'Controversial':
       return {
@@ -87,7 +100,10 @@ const getRedditBuzzStyle = (buzzType?: EnhancedBuzzType | 'High' | 'Medium' | 'L
         text: 'text-purple-700',
         border: 'border-purple-200',
         icon: <BsExclamationTriangle className="text-purple-500 mr-1" />,
-        label: 'Controversial'
+        label: 'Reddit: Controversial',
+        shortLabel: 'Controversial',
+        tooltip: 'Causing divided opinions on Reddit',
+        meter: 3
       };
     case 'Niche Interest':
       return {
@@ -95,7 +111,10 @@ const getRedditBuzzStyle = (buzzType?: EnhancedBuzzType | 'High' | 'Medium' | 'L
         text: 'text-yellow-700',
         border: 'border-yellow-200',
         icon: <BsChatSquareQuote className="text-yellow-500 mr-1" />,
-        label: 'Niche Interest'
+        label: 'Reddit: Niche Interest',
+        shortLabel: 'Niche',
+        tooltip: 'Moderate discussion in specific communities',
+        meter: 2
       };
     case 'High':
       return {
@@ -103,7 +122,10 @@ const getRedditBuzzStyle = (buzzType?: EnhancedBuzzType | 'High' | 'Medium' | 'L
         text: 'text-orange-700',
         border: 'border-orange-200',
         icon: <FaReddit className="text-orange-500 mr-1" />,
-        label: 'Trending'
+        label: 'Reddit: Popular',
+        shortLabel: 'Popular',
+        tooltip: 'High activity level on Reddit',
+        meter: 3
       };
     case 'Medium':
       return {
@@ -111,7 +133,10 @@ const getRedditBuzzStyle = (buzzType?: EnhancedBuzzType | 'High' | 'Medium' | 'L
         text: 'text-amber-700',
         border: 'border-amber-200',
         icon: <FaReddit className="text-amber-500 mr-1" />,
-        label: 'Trending'
+        label: 'Reddit: Active',
+        shortLabel: 'Active',
+        tooltip: 'Medium activity level on Reddit',
+        meter: 2
       };
     case 'Low':
       return {
@@ -119,12 +144,46 @@ const getRedditBuzzStyle = (buzzType?: EnhancedBuzzType | 'High' | 'Medium' | 'L
         text: 'text-gray-700',
         border: 'border-gray-200',
         icon: <FaReddit className="text-gray-400 mr-1" />,
-        label: 'Discussed'
+        label: 'Reddit: Minor Buzz',
+        shortLabel: 'Minor Buzz',
+        tooltip: 'Low activity level on Reddit',
+        meter: 1
       };
     default:
       return null;
   }
 };
+
+// Hook to manage screen size
+function useMediaQuery(query: string) {
+  const [matches, setMatches] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const media = window.matchMedia(query);
+      
+      const updateMatch = () => {
+        setMatches(media.matches);
+      };
+      
+      // Set initial value
+      updateMatch();
+      
+      // Add listener
+      if (media.addEventListener) {
+        media.addEventListener('change', updateMatch);
+        return () => media.removeEventListener('change', updateMatch);
+      } else {
+        // Fallback for older browsers
+        media.addListener(updateMatch);
+        return () => media.removeListener(updateMatch);
+      }
+    }
+    return undefined;
+  }, [query]);
+
+  return matches;
+}
 
 export default function ContentCard({ content, className = '', rank }: ContentCardProps) {
   const [imageError, setImageError] = useState(false);
@@ -134,6 +193,7 @@ export default function ContentCard({ content, className = '', rank }: ContentCa
   const [showFeedbackThanks, setShowFeedbackThanks] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const retried = useRef(false);
+  const isMobile = useMediaQuery('(max-width: 640px)');
   
   // Check if the item is in saved watchlist on component mount
   useEffect(() => {
@@ -243,6 +303,9 @@ export default function ContentCard({ content, className = '', rank }: ContentCa
       const feedbackData = localStorage.getItem('recommendation_feedback');
       let feedback = feedbackData ? JSON.parse(feedbackData) : [];
       
+      // Get algorithm information (if available)
+      const algorithm = localStorage.getItem('recommendation_algorithm') || undefined;
+      
       // Remove any existing feedback for this content
       feedback = feedback.filter((item: any) => item.contentId !== content.id);
       
@@ -253,7 +316,8 @@ export default function ContentCard({ content, className = '', rank }: ContentCa
         type,
         rank: rank || 0,
         timestamp: new Date().toISOString(),
-        genres: content.genres
+        genres: content.genres || [],
+        algorithm // Include the algorithm used for A/B testing
       });
       
       // Save to localStorage
@@ -287,15 +351,6 @@ export default function ContentCard({ content, className = '', rank }: ContentCa
           <div className="absolute inset-0 bg-gray-200 animate-pulse"></div>
         )}
         
-        {/* Content icon overlay - always visible for easier identification */}
-        <div className="absolute top-2 right-2 z-10 bg-gray-800 bg-opacity-70 text-white text-xs p-1 rounded-full">
-          {content.type === 'movie' ? (
-            <FaFilm size={12} />
-          ) : (
-            <FaTv size={12} />
-          )}
-        </div>
-        
         {/* Actual image */}
         {content.posterPath && !imageError ? (
           <img 
@@ -324,39 +379,7 @@ export default function ContentCard({ content, className = '', rank }: ContentCa
           </div>
         )}
         
-        {/* Type Badge - Movie or TV */}
-        <div className="absolute top-2 left-2 bg-black bg-opacity-70 text-white text-xs py-1 px-2 rounded-full flex items-center shadow-sm">
-          {content.type === 'movie' ? (
-            <>
-              <FaFilm className="mr-1" />
-              Movie
-            </>
-          ) : (
-            <>
-              <FaTv className="mr-1" />
-              TV
-            </>
-          )}
-        </div>
-        
-        {/* Year Badge (if available) */}
-        {content.releaseYear && (
-          <div className="absolute bottom-2 left-2 bg-gray-800 text-white text-xs py-1 px-2 rounded-full shadow-sm">
-            {content.releaseYear}
-          </div>
-        )}
-        
-        {/* Trailer Button - Positioned at bottom of poster */}
-        <div className="absolute bottom-2 right-2">
-          <TrailerButton 
-            title={content.title}
-            year={year}
-            type={content.type}
-            variant="icon"
-          />
-        </div>
-        
-        {/* Dark gradient overlay at the bottom for better visibility of badges */}
+        {/* Dark gradient overlay at the bottom for better visibility */}
         <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/70 to-transparent"></div>
       </div>
       
@@ -367,23 +390,69 @@ export default function ContentCard({ content, className = '', rank }: ContentCa
           {content.title}
         </h3>
         
-        {/* Metadata row - simplified */}
+        {/* Metadata row - Updated with rating icons */}
         <div className="flex items-center justify-between text-sm text-gray-500 mt-1 mb-2">
-          <div className="flex items-center space-x-2">
-            {content.releaseYear && <span>{content.releaseYear}</span>}
+          <div className="flex items-center gap-2">
+            {/* Content Type */}
+            <span className="flex items-center">
+              {content.type === 'movie' ? (
+                <FaFilm className="mr-1 text-gray-400" size={12} />
+              ) : (
+                <FaTv className="mr-1 text-gray-400" size={12} />
+              )}
+              {content.type === 'movie' ? 'Movie' : 'TV'}
+            </span>
+            
+            {/* IMDb Rating */}
             {content.imdbRating && content.imdbRating > 0 && (
               <div className="flex items-center">
-                <FaStar className="text-yellow-500 mr-1" />
+                <FaImdb className="text-yellow-600 mr-1" />
                 <span>{content.imdbRating.toFixed(1)}</span>
+              </div>
+            )}
+            
+            {/* Rotten Tomatoes Score */}
+            {content.rottenTomatoesScore && content.rottenTomatoesScore > 0 && (
+              <div className="flex items-center">
+                <SiRottentomatoes className={`mr-1 ${
+                  content.rottenTomatoesScore >= 75 ? 'text-green-600' : 
+                  content.rottenTomatoesScore >= 60 ? 'text-yellow-500' : 
+                  'text-red-600'
+                }`} />
+                <span>{content.rottenTomatoesScore}%</span>
               </div>
             )}
           </div>
           
-          {/* Reddit Buzz - simplified */}
+          {/* Reddit Buzz - improved display */}
           {redditBuzzStyle && (
-            <span className={`inline-flex items-center text-xs rounded-full px-2 py-0.5 ${redditBuzzStyle.bg} ${redditBuzzStyle.text}`}>
+            <span 
+              className={`inline-flex items-center text-xs rounded-full px-2 py-0.5 ${redditBuzzStyle.bg} ${redditBuzzStyle.text} relative group cursor-help`}
+              title={redditBuzzStyle.tooltip}
+            >
               {redditBuzzStyle.icon}
-              <span className="hidden sm:inline">{redditBuzzStyle.label}</span>
+              <span className="inline">
+                {isMobile ? redditBuzzStyle.shortLabel : redditBuzzStyle.label}
+              </span>
+              
+              {/* Activity meter */}
+              <span className="ml-1 inline-flex items-center">
+                {[...Array(4)].map((_, i) => (
+                  <span 
+                    key={i} 
+                    className={`h-1.5 w-1.5 rounded-full mx-0.5 ${
+                      i < redditBuzzStyle.meter 
+                        ? redditBuzzStyle.text.replace('text', 'bg') 
+                        : 'bg-gray-200'
+                    }`}
+                  />
+                ))}
+              </span>
+              
+              {/* Tooltip on hover */}
+              <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 -translate-y-1 bg-gray-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none z-10">
+                {redditBuzzStyle.tooltip}
+              </span>
             </span>
           )}
         </div>
@@ -401,6 +470,31 @@ export default function ContentCard({ content, className = '', rank }: ContentCa
             </span>
           )}
         </div>
+        
+        {/* Streaming Platform - Adding a more distinctive but on-brand design */}
+        {content.streamingPlatform && (
+          <div className="mt-2">
+            <div className="flex items-center">
+              <a 
+                href={`https://www.google.com/search?q=watch+${encodeURIComponent(content.title)}+on+${encodeURIComponent(content.streamingPlatform)}`}
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="relative group overflow-hidden text-xs px-3 py-1.5 rounded-md inline-flex items-center shadow-md transition-all"
+                style={{
+                  background: 'linear-gradient(135deg, #6366f1, #ec4899)',
+                  border: '1px solid rgba(255,255,255,0.2)'
+                }}
+              >
+                <span className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-300"></span>
+                <FaPlay className="w-3 h-3 mr-2 text-white" />
+                <span className="font-medium text-white">
+                  Watch on <span className="font-bold underline">{content.streamingPlatform}</span>
+                </span>
+                <span className="ml-1.5 bg-white bg-opacity-30 text-white text-[10px] px-1 py-0.5 rounded-sm font-bold">GO</span>
+              </a>
+            </div>
+          </div>
+        )}
         
         {/* Compact match info for top 3 */}
         {rank && rank <= 3 && (
@@ -457,18 +551,60 @@ export default function ContentCard({ content, className = '', rank }: ContentCa
               {content.overview}
             </p>
             
-            {/* Streaming info */}
+            {/* Reddit buzz information - detailed */}
+            {redditBuzzStyle && (
+              <div className="mb-3">
+                <h4 className="text-xs font-medium text-gray-500 mb-1">REDDIT ACTIVITY</h4>
+                <div className={`flex items-center p-2 rounded ${redditBuzzStyle.bg}`}>
+                  <div className="mr-3 p-2 rounded-full bg-white">
+                    {redditBuzzStyle.icon.type === FaReddit ? 
+                      <FaReddit className="text-xl text-orange-500" /> : 
+                      redditBuzzStyle.icon}
+                  </div>
+                  <div>
+                    <p className={`font-medium ${redditBuzzStyle.text}`}>{redditBuzzStyle.label}</p>
+                    <p className="text-xs text-gray-600 mt-0.5">{redditBuzzStyle.tooltip}</p>
+                    <div className="flex items-center mt-1">
+                      <div className="h-2 bg-gray-200 rounded-full flex-grow mr-2">
+                        <div 
+                          className={`h-2 rounded-full ${redditBuzzStyle.text.replace('text', 'bg')}`}
+                          style={{ width: `${(redditBuzzStyle.meter / 4) * 100}%` }}
+                        />
+                      </div>
+                      <span className="text-xs text-gray-600">{redditBuzzStyle.meter}/4</span>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-1.5">
+                  Based on Reddit discussions, comments, and sentiment analysis
+                </p>
+              </div>
+            )}
+            
+            {/* Streaming info with updated styling to match main card */}
             {content.streamingPlatform && (
               <div className="mb-3">
-                <h4 className="text-xs font-medium text-gray-500 mb-1">AVAILABLE ON</h4>
+                <h4 className="text-xs font-medium text-gray-500 mb-1">WHERE TO WATCH</h4>
                 <a 
                   href={`https://www.google.com/search?q=watch+${encodeURIComponent(content.title)}+on+${encodeURIComponent(content.streamingPlatform)}`}
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full inline-flex items-center hover:bg-blue-200 transition-colors"
+                  className="relative group overflow-hidden text-xs px-3 py-1.5 rounded-md inline-flex items-center shadow-md transition-all"
+                  style={{
+                    background: 'linear-gradient(135deg, #6366f1, #ec4899)',
+                    border: '1px solid rgba(255,255,255,0.2)'
+                  }}
                 >
-                  <span className="font-medium">{content.streamingPlatform}</span>
+                  <span className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-300"></span>
+                  <FaPlay className="w-3 h-3 mr-2 text-white" />
+                  <span className="font-medium text-white">
+                    Watch on <span className="font-bold underline">{content.streamingPlatform}</span>
+                  </span>
+                  <span className="ml-1.5 bg-white bg-opacity-30 text-white text-[10px] px-1 py-0.5 rounded-sm font-bold">GO</span>
                 </a>
+                <p className="text-xs text-gray-500 mt-1.5">
+                  Streaming options and pricing details available
+                </p>
               </div>
             )}
             

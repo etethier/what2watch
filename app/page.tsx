@@ -16,6 +16,7 @@ export default function Home() {
   const [tmdbStatus, setTmdbStatus] = useState('');
   const [recommendations, setRecommendations] = useState<MovieTVShow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [usingSampleData, setUsingSampleData] = useState(false);
   
   // Test Supabase connection on load
   useEffect(() => {
@@ -62,13 +63,21 @@ export default function Home() {
             ];
             
             if (combinedResults.length > 0) {
-              content = combinedResults.map(item => adaptToWhat2WatchFormat({...item, media_type: 'movie' as const}));
+              // Explicitly cast the result to MovieTVShow[] to satisfy TypeScript
+              const adaptedContent = await Promise.all(combinedResults.map(item => 
+                adaptToWhat2WatchFormat({...item, media_type: 'movie' as const})
+              ));
+              content = adaptedContent as MovieTVShow[];
             }
           } catch (error) {
             console.error('Error fetching multiple pages:', error);
             const popularMovies = await getPopularMovies();
             if (popularMovies.results.length > 0) {
-              content = popularMovies.results.map(item => adaptToWhat2WatchFormat({...item, media_type: 'movie' as const}));
+              // Explicitly cast the result to MovieTVShow[] to satisfy TypeScript
+              const adaptedContent = await Promise.all(popularMovies.results.map(item => 
+                adaptToWhat2WatchFormat({...item, media_type: 'movie' as const})
+              ));
+              content = adaptedContent as MovieTVShow[];
             }
           }
         }
@@ -77,29 +86,26 @@ export default function Home() {
         if (content.length > 0) {
           console.log('TMDB API success, loaded', content.length, 'items');
           
-          // Mix in some sample recommendations for diversity
-          const mixedContent = [
-            ...content.slice(0, Math.min(24, content.length)),
-            ...sampleRecommendations.slice(0, 6)
-          ];
+          // Randomize the order slightly for variety
+          content.sort(() => Math.random() - 0.5);
           
-          // Sort by rating for better recommendations
-          mixedContent.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-          
-          setRecommendations(mixedContent);
+          setRecommendations(content);
           setTmdbStatus('TMDB OK');
+          setUsingSampleData(false);
         } else {
           // Fall back to sample data
           console.log('TMDB API returned no content, using sample data');
           const allSampleData = [...sampleRecommendations, ...generateMoreSampleRecommendations()];
           setRecommendations(allSampleData);
           setTmdbStatus('TMDB Error (Using Sample Data)');
+          setUsingSampleData(true);
         }
       } catch (error) {
         console.error('Error loading TMDB content:', error);
-        const allSampleData = [...sampleRecommendations, ...generateMoreSampleRecommendations(), ...generateMoreSampleRecommendations()];
+        const allSampleData = [...sampleRecommendations, ...generateMoreSampleRecommendations()];
         setRecommendations(allSampleData);
         setTmdbStatus('TMDB Error (Using Sample Data)');
+        setUsingSampleData(true);
       } finally {
         setIsLoading(false);
       }
@@ -444,6 +450,66 @@ export default function Home() {
             </button>
           </div>
         </section>
+
+        {/* Menu Items */}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-4 md:gap-6 mt-8">
+          <a 
+            onClick={startQuiz}
+            className="bg-white rounded-lg shadow-sm p-6 text-center cursor-pointer transition-all hover:shadow-md border border-gray-200"
+          >
+            <h3 className="font-bold text-xl mb-2 text-pink-600">Take the Quiz</h3>
+            <p className="text-gray-600 text-sm mb-4">Find your perfect watch recommendation by answering a few quick questions</p>
+            <button className="inline-flex items-center bg-pink-500 text-white rounded-full px-4 py-2 text-sm">
+              Start Now
+              <FaArrowRight className="ml-2" />
+            </button>
+          </a>
+          
+          <a
+            href="/recommendation-analytics"
+            className="bg-white rounded-lg shadow-sm p-6 text-center cursor-pointer transition-all hover:shadow-md border border-gray-200"
+          >
+            <h3 className="font-bold text-xl mb-2 text-pink-600">View Analytics</h3>
+            <p className="text-gray-600 text-sm mb-4">See how well our recommendations perform based on user feedback</p>
+            <button className="inline-flex items-center bg-pink-500 text-white rounded-full px-4 py-2 text-sm">
+              View Analytics
+              <FaArrowRight className="ml-2" />
+            </button>
+          </a>
+          
+          <a
+            href="/user-testing"
+            className="bg-white rounded-lg shadow-sm p-6 text-center cursor-pointer transition-all hover:shadow-md border border-gray-200"
+          >
+            <h3 className="font-bold text-xl mb-2 text-pink-600">Help Us Improve</h3>
+            <p className="text-gray-600 text-sm mb-4">Take a 3-minute test to help improve our recommendation algorithms</p>
+            <button className="inline-flex items-center bg-pink-500 text-white rounded-full px-4 py-2 text-sm">
+              Start Testing
+              <FaArrowRight className="ml-2" />
+            </button>
+          </a>
+          
+          <a
+            href="/content-library"
+            className="bg-white rounded-lg shadow-sm p-6 text-center cursor-pointer transition-all hover:shadow-md border border-gray-200"
+          >
+            <h3 className="font-bold text-xl mb-2 text-pink-600">Content Library</h3>
+            <p className="text-gray-600 text-sm mb-4">Explore our expanded collection of movies and TV shows from multiple sources</p>
+            <button className="inline-flex items-center bg-pink-500 text-white rounded-full px-4 py-2 text-sm">
+              Browse Library
+              <FaArrowRight className="ml-2" />
+            </button>
+          </a>
+        </div>
+
+        {usingSampleData && (
+          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 max-w-3xl mx-auto mt-4">
+            <p className="text-yellow-800">
+              <strong>Note:</strong> We're currently showing sample recommendations due to an issue connecting to our movie database. 
+              For personalized recommendations, please try the quiz.
+            </p>
+          </div>
+        )}
       </div>
     );
   }
@@ -452,9 +518,27 @@ export default function Home() {
   return showQuiz ? (
     <Quiz onComplete={handleQuizComplete} />
   ) : (
-    <Recommendations 
-      recommendations={recommendations.length > 0 ? recommendations : sampleRecommendations} 
-      onRetakeQuiz={handleRetakeQuiz} 
-    />
+    showRecommendations ? (
+      <Recommendations 
+        recommendations={recommendations} 
+        onRetakeQuiz={handleRetakeQuiz} 
+      />
+    ) : (
+      // Landing page UI code remains unchanged
+      <div className="bg-white">
+        {/* ... existing landing page code ... */}
+        
+        {usingSampleData && (
+          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 max-w-3xl mx-auto mt-4">
+            <p className="text-yellow-800">
+              <strong>Note:</strong> We're currently showing sample recommendations due to an issue connecting to our movie database. 
+              For personalized recommendations, please try the quiz.
+            </p>
+          </div>
+        )}
+        
+        {/* ... rest of the existing landing page code ... */}
+      </div>
+    )
   );
 }

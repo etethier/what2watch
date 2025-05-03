@@ -424,4 +424,293 @@ export const discoverTVShows = async (
     console.error('Error discovering TV shows:', error);
     return { page: 1, results: [], total_pages: 0, total_results: 0 };
   }
+};
+
+/**
+ * Get top-rated movies
+ * @param page - The page number to fetch (defaults to 1)
+ * @returns Promise with top-rated movies data
+ */
+export const getTopRatedMovies = async (page: number = 1): Promise<TMDBResponse<TMDBContentItem>> => {
+  if (!isApiKeySet()) {
+    return { page: 0, results: [], total_results: 0, total_pages: 0 };
+  }
+
+  try {
+    const url = `${BASE_URL}/movie/top_rated?api_key=${TMDB_API_KEY}&page=${page}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    
+    // Add media_type field to each result
+    const results = data.results.map((item: TMDBContentItem) => ({
+      ...item,
+      media_type: 'movie'
+    }));
+
+    return { ...data, results };
+  } catch (error) {
+    console.error('Error fetching top-rated movies:', error);
+    return { page: 0, results: [], total_results: 0, total_pages: 0 };
+  }
+};
+
+/**
+ * Get top-rated TV shows
+ * @param page - The page number to fetch (defaults to 1)
+ * @returns Promise with top-rated TV shows data
+ */
+export const getTopRatedTVShows = async (page: number = 1): Promise<TMDBResponse<TMDBContentItem>> => {
+  if (!isApiKeySet()) {
+    return { page: 0, results: [], total_results: 0, total_pages: 0 };
+  }
+
+  try {
+    const url = `${BASE_URL}/tv/top_rated?api_key=${TMDB_API_KEY}&page=${page}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    
+    // Add media_type field to each result
+    const results = data.results.map((item: TMDBContentItem) => ({
+      ...item,
+      media_type: 'tv'
+    }));
+
+    return { ...data, results };
+  } catch (error) {
+    console.error('Error fetching top-rated TV shows:', error);
+    return { page: 0, results: [], total_results: 0, total_pages: 0 };
+  }
+};
+
+/**
+ * Get upcoming movies
+ * @param page - The page number to fetch (defaults to 1)
+ * @returns Promise with upcoming movies data
+ */
+export const getUpcomingMovies = async (page: number = 1): Promise<TMDBResponse<TMDBContentItem>> => {
+  if (!isApiKeySet()) {
+    return { page: 0, results: [], total_results: 0, total_pages: 0 };
+  }
+
+  try {
+    const url = `${BASE_URL}/movie/upcoming?api_key=${TMDB_API_KEY}&page=${page}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    
+    // Add media_type field to each result
+    const results = data.results.map((item: TMDBContentItem) => ({
+      ...item,
+      media_type: 'movie'
+    }));
+
+    return { ...data, results };
+  } catch (error) {
+    console.error('Error fetching upcoming movies:', error);
+    return { page: 0, results: [], total_results: 0, total_pages: 0 };
+  }
+};
+
+/**
+ * Get similar content based on a movie or TV show
+ * @param id - The TMDB content ID
+ * @param type - The content type ('movie' or 'tv')
+ * @returns Promise with similar content data
+ */
+export const getSimilarContent = async (
+  id: number,
+  type: 'movie' | 'tv'
+): Promise<TMDBResponse<TMDBContentItem>> => {
+  if (!isApiKeySet()) {
+    return { page: 0, results: [], total_results: 0, total_pages: 0 };
+  }
+
+  try {
+    const url = `${BASE_URL}/${type}/${id}/similar?api_key=${TMDB_API_KEY}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    
+    // Add media_type field to each result
+    const results = data.results.map((item: TMDBContentItem) => ({
+      ...item,
+      media_type: type
+    }));
+
+    return { ...data, results };
+  } catch (error) {
+    console.error(`Error fetching similar ${type} content for ID ${id}:`, error);
+    return { page: 0, results: [], total_results: 0, total_pages: 0 };
+  }
+};
+
+/**
+ * Get content recommendations based on a movie or TV show
+ * @param id - The TMDB content ID
+ * @param type - The content type ('movie' or 'tv')
+ * @returns Promise with recommended content data
+ */
+export const getRecommendedContent = async (
+  id: number,
+  type: 'movie' | 'tv'
+): Promise<TMDBResponse<TMDBContentItem>> => {
+  if (!isApiKeySet()) {
+    return { page: 0, results: [], total_results: 0, total_pages: 0 };
+  }
+
+  try {
+    const url = `${BASE_URL}/${type}/${id}/recommendations?api_key=${TMDB_API_KEY}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    
+    // Add media_type field to each result
+    const results = data.results.map((item: TMDBContentItem) => ({
+      ...item,
+      media_type: type
+    }));
+
+    return { ...data, results };
+  } catch (error) {
+    console.error(`Error fetching recommended ${type} content for ID ${id}:`, error);
+    return { page: 0, results: [], total_results: 0, total_pages: 0 };
+  }
+};
+
+/**
+ * Get movies or TV shows by genre
+ * @param genreId - The TMDB genre ID
+ * @param type - The content type ('movie' or 'tv')
+ * @param page - The page number to fetch (defaults to 1)
+ * @returns Promise with genre-specific content data
+ */
+export const getContentByGenre = async (
+  genreId: number,
+  type: 'movie' | 'tv',
+  page: number = 1
+): Promise<TMDBResponse<TMDBContentItem>> => {
+  if (!isApiKeySet()) {
+    return { page: 0, results: [], total_results: 0, total_pages: 0 };
+  }
+
+  try {
+    const url = `${BASE_URL}/discover/${type}?api_key=${TMDB_API_KEY}&with_genres=${genreId}&page=${page}&sort_by=popularity.desc`;
+    const response = await fetch(url);
+    const data = await response.json();
+    
+    // Add media_type field to each result
+    const results = data.results.map((item: TMDBContentItem) => ({
+      ...item,
+      media_type: type
+    }));
+
+    return { ...data, results };
+  } catch (error) {
+    console.error(`Error fetching ${type} content for genre ID ${genreId}:`, error);
+    return { page: 0, results: [], total_results: 0, total_pages: 0 };
+  }
+};
+
+/**
+ * Get movies or TV shows by time period
+ * @param startYear - The starting year of the time period
+ * @param endYear - The ending year of the time period (defaults to startYear)
+ * @param type - The content type ('movie' or 'tv')
+ * @param page - The page number to fetch (defaults to 1)
+ * @returns Promise with time-specific content data
+ */
+export const getContentByTimePeriod = async (
+  startYear: number,
+  endYear: number = startYear,
+  type: 'movie' | 'tv',
+  page: number = 1
+): Promise<TMDBResponse<TMDBContentItem>> => {
+  if (!isApiKeySet()) {
+    return { page: 0, results: [], total_results: 0, total_pages: 0 };
+  }
+
+  try {
+    const dateField = type === 'movie' ? 'primary_release_date' : 'first_air_date';
+    const url = `${BASE_URL}/discover/${type}?api_key=${TMDB_API_KEY}&${dateField}.gte=${startYear}-01-01&${dateField}.lte=${endYear}-12-31&page=${page}&sort_by=vote_count.desc`;
+    const response = await fetch(url);
+    const data = await response.json();
+    
+    // Add media_type field to each result
+    const results = data.results.map((item: TMDBContentItem) => ({
+      ...item,
+      media_type: type
+    }));
+
+    return { ...data, results };
+  } catch (error) {
+    console.error(`Error fetching ${type} content from ${startYear} to ${endYear}:`, error);
+    return { page: 0, results: [], total_results: 0, total_pages: 0 };
+  }
+};
+
+/**
+ * Comprehensive function to fetch a variety of content in one call
+ * @param contentType - Type of content to fetch ('movie', 'tv', or 'both')
+ * @param maxPages - Maximum number of pages to fetch for each content type
+ * @returns Promise with an array of content items
+ */
+export const fetchComprehensiveContent = async (
+  contentType: 'movie' | 'tv' | 'both' = 'both',
+  maxPages: number = 2
+): Promise<TMDBContentItem[]> => {
+  try {
+    const allContent: TMDBContentItem[] = [];
+    const requests: Promise<void>[] = [];
+    
+    // Function to handle requests and combine results
+    const addRequest = (fetchFunction: () => Promise<TMDBResponse<TMDBContentItem>>) => {
+      const request = fetchFunction().then(data => {
+        if (data.results && data.results.length > 0) {
+          allContent.push(...data.results);
+        }
+      }).catch(error => {
+        console.error('Error in content request:', error);
+      });
+      
+      requests.push(request);
+    };
+    
+    // Trending content
+    addRequest(() => fetch(`${BASE_URL}/trending/all/week?api_key=${TMDB_API_KEY}`)
+      .then(res => res.json()));
+    
+    // Fetch multiple pages for popular and top-rated content
+    for (let page = 1; page <= maxPages; page++) {
+      if (contentType === 'movie' || contentType === 'both') {
+        // Popular movies
+        addRequest(() => getPopularMovies(page));
+        
+        // Top-rated movies
+        addRequest(() => getTopRatedMovies(page));
+        
+        // Upcoming movies
+        if (page === 1) { // Only need one page of upcoming
+          addRequest(() => getUpcomingMovies(page));
+        }
+      }
+      
+      if (contentType === 'tv' || contentType === 'both') {
+        // Popular TV shows
+        addRequest(() => getPopularTVShows(page));
+        
+        // Top-rated TV shows
+        addRequest(() => getTopRatedTVShows(page));
+      }
+    }
+    
+    // Wait for all requests to complete
+    await Promise.all(requests);
+    
+    // Remove duplicates by ID
+    const uniqueContent = Array.from(
+      new Map(allContent.map(item => [item.id, item])).values()
+    );
+    
+    return uniqueContent;
+  } catch (error) {
+    console.error('Error fetching comprehensive content:', error);
+    return [];
+  }
 }; 
