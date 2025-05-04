@@ -1,15 +1,49 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { FaStar, FaTv, FaFilm, FaTrophy, FaReddit, FaFire, FaComments, FaHeart, FaRegHeart, FaBookmark, FaRegBookmark, FaThumbsUp, FaThumbsDown, FaInfoCircle, FaImdb, FaPlay } from 'react-icons/fa';
+import { FaStar, FaTv, FaFilm, FaTrophy, FaReddit, FaFire, FaComments, FaHeart, FaRegHeart, FaBookmark, FaRegBookmark, FaThumbsUp, FaThumbsDown, FaInfoCircle, FaImdb, FaPlay, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 import { IoFastFoodOutline } from 'react-icons/io5';
 import { BsChatSquareQuote, BsExclamationTriangle } from 'react-icons/bs';
 import { SiRottentomatoes } from 'react-icons/si';
 import { MovieTVShow, EnhancedBuzzType } from '../types';
 import TrailerButton from './TrailerButton';
 
+// Helper function to get streaming platform URLs
+const getStreamingPlatformUrl = (platform: string, title?: string): string => {
+  // Normalize platform name by removing spaces and converting to lowercase
+  const normalizedPlatform = platform.toLowerCase().replace(/\s+/g, '');
+  
+  // Map of streaming platforms to their base URLs
+  const platformUrls: Record<string, string> = {
+    'netflix': 'https://www.netflix.com/search?q=',
+    'prime': 'https://www.amazon.com/s?k=',
+    'primevideo': 'https://www.amazon.com/s?k=',
+    'hulu': 'https://www.hulu.com/search?q=',
+    'disney+': 'https://www.disneyplus.com/search?q=',
+    'disneyplus': 'https://www.disneyplus.com/search?q=',
+    'hbomax': 'https://www.max.com/search?q=',
+    'max': 'https://www.max.com/search?q=',
+    'appletv+': 'https://tv.apple.com/search?term=',
+    'appletv': 'https://tv.apple.com/search?term=',
+    'peacock': 'https://www.peacocktv.com/search?q=',
+    'paramount+': 'https://www.paramountplus.com/search/?q=',
+    'paramountplus': 'https://www.paramountplus.com/search/?q=',
+    'starz': 'https://www.starz.com/us/en/search?q=',
+    'showtime': 'https://www.sho.com/search?q='
+  };
+  
+  // Get URL for the platform if it exists in our map
+  const baseUrl = platformUrls[normalizedPlatform] || `https://www.google.com/search?q=watch+on+${encodeURIComponent(platform)}+`;
+  
+  // Append the title to the URL if provided
+  return title ? `${baseUrl}${encodeURIComponent(title)}` : baseUrl;
+};
+
 interface ContentCardProps {
-  content: MovieTVShow & { releaseYear?: number };
+  content: MovieTVShow & { 
+    releaseYear?: number;
+    // Allow streamingPlatform to be a string or array of strings
+  };
   className?: string;
   rank?: number;
 }
@@ -192,6 +226,7 @@ export default function ContentCard({ content, className = '', rank }: ContentCa
   const [feedbackGiven, setFeedbackGiven] = useState<'liked' | 'disliked' | null>(null);
   const [showFeedbackThanks, setShowFeedbackThanks] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+  const [showAllPlatforms, setShowAllPlatforms] = useState(false);
   const retried = useRef(false);
   const isMobile = useMediaQuery('(max-width: 640px)');
   
@@ -342,6 +377,17 @@ export default function ContentCard({ content, className = '', rank }: ContentCa
   const rankColors = getRankColors(rank);
   const redditBuzzStyle = getRedditBuzzStyle(content.redditBuzz);
   
+  // Convert streamingPlatform to array for consistent handling
+  const platforms = Array.isArray(content.streamingPlatform) 
+    ? content.streamingPlatform 
+    : content.streamingPlatform 
+      ? [content.streamingPlatform] 
+      : [];
+      
+  // Determine if we need a "show more" button for platforms
+  const hasMultiplePlatforms = platforms.length > 1;
+  const displayPlatforms = showAllPlatforms ? platforms : platforms.slice(0, 1);
+  
   return (
     <div className={`relative bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 ${className}`}>
       {/* Poster Image Container with fixed aspect ratio */}
@@ -471,27 +517,44 @@ export default function ContentCard({ content, className = '', rank }: ContentCa
           )}
         </div>
         
-        {/* Streaming Platform - Adding a more distinctive but on-brand design */}
-        {content.streamingPlatform && (
+        {/* Streaming Platform - Multiple platforms support */}
+        {platforms.length > 0 && (
           <div className="mt-2">
-            <div className="flex items-center">
-              <a 
-                href={`https://www.google.com/search?q=watch+${encodeURIComponent(content.title)}+on+${encodeURIComponent(content.streamingPlatform)}`}
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="relative group overflow-hidden text-xs px-3 py-1.5 rounded-md inline-flex items-center shadow-md transition-all"
-                style={{
-                  background: 'linear-gradient(135deg, #6366f1, #ec4899)',
-                  border: '1px solid rgba(255,255,255,0.2)'
-                }}
-              >
-                <span className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-300"></span>
-                <FaPlay className="w-3 h-3 mr-2 text-white" />
-                <span className="font-medium text-white">
-                  Watch on <span className="font-bold underline">{content.streamingPlatform}</span>
-                </span>
-                <span className="ml-1.5 bg-white bg-opacity-30 text-white text-[10px] px-1 py-0.5 rounded-sm font-bold">GO</span>
-              </a>
+            <div className="flex flex-col space-y-1">
+              {displayPlatforms.map((platform, index) => (
+                <a 
+                  key={index}
+                  href={getStreamingPlatformUrl(platform, content.title)}
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="relative group text-xs px-2.5 py-1 rounded-md inline-flex items-center transition-all border border-gray-200 hover:border-pink-200 bg-gray-50 hover:bg-pink-50 text-gray-700"
+                >
+                  <FaPlay className="w-2.5 h-2.5 mr-1.5 text-pink-500" />
+                  <span className="font-medium">
+                    Watch on <span className="text-pink-500">{platform}</span>
+                  </span>
+                </a>
+              ))}
+              
+              {/* Show more/less platforms toggle */}
+              {hasMultiplePlatforms && (
+                <button 
+                  onClick={() => setShowAllPlatforms(!showAllPlatforms)}
+                  className="text-xs text-pink-500 hover:text-pink-600 flex items-center justify-center mt-1"
+                >
+                  {showAllPlatforms ? (
+                    <>
+                      <FaChevronUp className="mr-1" size={10} />
+                      Show less
+                    </>
+                  ) : (
+                    <>
+                      <FaChevronDown className="mr-1" size={10} />
+                      +{platforms.length - 1} more {platforms.length - 1 === 1 ? 'platform' : 'platforms'}
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -581,29 +644,33 @@ export default function ContentCard({ content, className = '', rank }: ContentCa
               </div>
             )}
             
-            {/* Streaming info with updated styling to match main card */}
-            {content.streamingPlatform && (
+            {/* Streaming info with updated styling to be more subtle */}
+            {platforms.length > 0 && (
               <div className="mb-3">
                 <h4 className="text-xs font-medium text-gray-500 mb-1">WHERE TO WATCH</h4>
-                <a 
-                  href={`https://www.google.com/search?q=watch+${encodeURIComponent(content.title)}+on+${encodeURIComponent(content.streamingPlatform)}`}
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="relative group overflow-hidden text-xs px-3 py-1.5 rounded-md inline-flex items-center shadow-md transition-all"
-                  style={{
-                    background: 'linear-gradient(135deg, #6366f1, #ec4899)',
-                    border: '1px solid rgba(255,255,255,0.2)'
-                  }}
-                >
-                  <span className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-300"></span>
-                  <FaPlay className="w-3 h-3 mr-2 text-white" />
-                  <span className="font-medium text-white">
-                    Watch on <span className="font-bold underline">{content.streamingPlatform}</span>
-                  </span>
-                  <span className="ml-1.5 bg-white bg-opacity-30 text-white text-[10px] px-1 py-0.5 rounded-sm font-bold">GO</span>
-                </a>
+                <div className="space-y-1.5">
+                  {platforms.map((platform, index) => (
+                    <a 
+                      key={index}
+                      href={getStreamingPlatformUrl(platform, content.title)}
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="relative group text-xs px-3 py-1.5 rounded-md inline-flex items-center transition-all border border-gray-200 hover:border-pink-200 bg-gray-50 hover:bg-pink-50 text-gray-700 w-full"
+                    >
+                      <FaPlay className="w-3 h-3 mr-2 text-pink-500" />
+                      <span className="font-medium">
+                        {platform}
+                      </span>
+                      {index === 0 && (
+                        <span className="ml-auto text-gray-400 text-[10px]">Primary</span>
+                      )}
+                    </a>
+                  ))}
+                </div>
                 <p className="text-xs text-gray-500 mt-1.5">
-                  Streaming options and pricing details available
+                  {platforms.length > 1 
+                    ? `Available on ${platforms.length} streaming services` 
+                    : "Streaming options and pricing details available"}
                 </p>
               </div>
             )}
