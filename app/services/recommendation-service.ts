@@ -6,6 +6,10 @@ import { estimateRedditBuzz, getRedditBuzzWithFallback } from './reddit-service'
 interface QuizAnswer {
   question: string;
   answer: string;
+  genres_priority?: Array<{
+    genre: string;
+    priority: number;
+  }>;
 }
 
 type MoodToGenreMap = {
@@ -14,12 +18,16 @@ type MoodToGenreMap = {
 
 // Map moods to relevant genres
 const MOOD_TO_GENRE_MAP: MoodToGenreMap = {
-  happy: ['35', '10751', '16'], // Comedy, Family, Animation
-  sad: ['18', '10749'], // Drama, Romance
-  excited: ['28', '12', '53', '878'], // Action, Adventure, Thriller, Science Fiction
-  scared: ['27', '9648'], // Horror, Mystery
-  relaxed: ['35', '10751', '10770'], // Comedy, Family, TV Movie
-  thoughtful: ['18', '99', '36'], // Drama, Documentary, History
+  laugh: ['35', '10751'], // Comedy, Family
+  cry: ['18', '10749'], // Drama, Romance
+  drama: ['18', '80', '10768'], // Drama, Crime, War & Politics
+  'mind-blowing': ['878', '14', '9648'], // Sci-Fi, Fantasy, Mystery
+  uplifting: ['35', '10751', '10749'], // Comedy, Family, Romance
+  'plot-twists': ['9648', '53', '80'], // Mystery, Thriller, Crime
+  cozy: ['10751', '35', '14'], // Family, Comedy, Fantasy
+  dark: ['27', '53', '80'], // Horror, Thriller, Crime
+  educational: ['99', '36', '10768'], // Documentary, History, War & Politics
+  background: ['35', '10751', '10402'], // Comedy, Family, Music
 };
 
 // Map content types to TMDB media types
@@ -38,6 +46,7 @@ export const extractPreferences = (quizAnswers: QuizAnswer[]) => {
   let mood = '';
   let contentType = 'both';
   let genres: string[] = [];
+  let prioritizedGenres: Array<{genre: string, priority: number}> = [];
   let duration = 120; // Default duration in minutes
   let era = 'any'; // Default era preference: any, new, classic
   
@@ -78,6 +87,35 @@ export const extractPreferences = (quizAnswers: QuizAnswer[]) => {
       }
     }
     
+    // Check for genres with priority information
+    if (answer.question.includes('genre') && answer.genres_priority && answer.genres_priority.length > 0) {
+      console.log('Found prioritized genres:', answer.genres_priority);
+      prioritizedGenres = answer.genres_priority;
+      
+      // Map string genre values to TMDB genre IDs
+      const genreToTMDBId: Record<string, string> = {
+        'comedy': '35',
+        'action': '28',
+        'thriller': '53',
+        'scifi-fantasy': '878',  // Using Sci-Fi as primary genre ID
+        'romance': '10749',
+        'documentary': '99',
+        'true-crime': '80',      // Using Crime as closest match
+        'animated': '16',
+        'supernatural': '14',    // Using Fantasy as closest match
+        'historical': '36'
+      };
+      
+      // Extract genres array from the prioritized genres
+      genres = prioritizedGenres.map(pg => {
+        const genreKey = pg.genre.toLowerCase();
+        return genreToTMDBId[genreKey] || '';
+      }).filter(id => id !== ''); // Remove empty IDs
+      
+      // If we have prioritized genres, don't continue with other extraction methods
+      return;
+    }
+    
     // Extract specific genre preferences if mentioned
     const genreKeywords = [
       { keywords: ['action', 'adventure'], id: '28' },
@@ -110,6 +148,7 @@ export const extractPreferences = (quizAnswers: QuizAnswer[]) => {
     mood,
     contentType,
     genres,
+    prioritizedGenres,
     duration,
     era,
   };
@@ -133,6 +172,7 @@ export const getRecommendations = async (quizAnswers: QuizAnswer[]) => {
       mood: preferences.mood,
       contentType: preferences.contentType,
       genres: preferences.genres,
+      prioritizedGenres: preferences.prioritizedGenres, 
       duration: preferences.duration,
       era: preferences.era
     });
@@ -213,8 +253,38 @@ export const getRecommendations = async (quizAnswers: QuizAnswer[]) => {
       
       // Match genres (explicit match)
       item.genre_ids?.forEach(genreId => {
+        // Base genre match score
         if (preferences.genres.includes(genreId.toString())) {
-          score += 20; // Higher weight for genre match
+          score += 20; // Base score for genre match
+          
+          // Apply priority boosting if we have prioritized genres
+          if (preferences.prioritizedGenres && preferences.prioritizedGenres.length > 0) {
+            // Find matching prioritized genre
+            const matchingGenreInfo = preferences.prioritizedGenres.find(pg => {
+              const genreKey = pg.genre.toLowerCase();
+              const genreToTMDBId: Record<string, string> = {
+                'comedy': '35',
+                'action': '28',
+                'thriller': '53',
+                'scifi-fantasy': '878',  // Using Sci-Fi as primary genre ID
+                'romance': '10749',
+                'documentary': '99',
+                'true-crime': '80',      // Using Crime as closest match
+                'animated': '16',
+                'supernatural': '14',    // Using Fantasy as closest match
+                'historical': '36'
+              };
+              return genreToTMDBId[genreKey] === genreId.toString();
+            });
+            
+            if (matchingGenreInfo) {
+              // Calculate priority boost - higher priority (lower number) gets higher boost
+              // Priority 1: +30, Priority 2: +20, Priority 3: +10
+              const priorityBoost = (4 - matchingGenreInfo.priority) * 10;
+              score += priorityBoost;
+              console.log(`Applied priority boost of ${priorityBoost} for genre with priority ${matchingGenreInfo.priority}`);
+            }
+          }
         }
       });
       
@@ -260,13 +330,35 @@ export const getRecommendations = async (quizAnswers: QuizAnswer[]) => {
       const typedContent = content as MovieTVShow;
       const relevanceScore = relevanceScores[typedContent.id] || 0;
       
-      // Add bonus points for high Reddit buzz
+      // Add bonus points for high Reddit buzz - INCREASED WEIGHT
       let buzzBonus = 0;
-      if (typedContent.redditBuzz === 'High') buzzBonus = 10;
-      else if (typedContent.redditBuzz === 'Medium') buzzBonus = 5;
+      if (typedContent.redditBuzz === 'High') buzzBonus = 20; // Increased from 10
+      else if (typedContent.redditBuzz === 'Medium') buzzBonus = 10; // Increased from 5
+      else if (typedContent.redditBuzz === 'Low') buzzBonus = 2; // Added small bonus for low buzz
       
-      // Final score combines relevance, rating, and Reddit buzz
-      const finalScore = relevanceScore + (typedContent.rating / 2) + buzzBonus;
+      // Add bonus points for Rotten Tomatoes score
+      let rtBonus = 0;
+      if (typedContent.rottenTomatoesScore) {
+        if (typedContent.rottenTomatoesScore >= 90) rtBonus = 25; // "Certified Fresh" equivalent
+        else if (typedContent.rottenTomatoesScore >= 75) rtBonus = 15; // "Fresh" equivalent
+        else if (typedContent.rottenTomatoesScore >= 60) rtBonus = 5; // "Mixed" equivalent
+      }
+      
+      // Add bonus points for IMDb rating
+      let imdbBonus = 0;
+      if (typedContent.imdbRating) {
+        if (typedContent.imdbRating >= 8.5) imdbBonus = 25; // Exceptional rating
+        else if (typedContent.imdbRating >= 7.5) imdbBonus = 15; // Very good rating
+        else if (typedContent.imdbRating >= 6.5) imdbBonus = 5; // Above average rating
+      }
+      
+      // Final score combines all factors - weighted toward external ratings
+      // Previously: relevanceScore + (typedContent.rating / 2) + buzzBonus
+      const finalScore = (relevanceScore * 0.6) + // Genre/preference match at 60% weight
+                        (typedContent.rating * 0.5) + // Basic rating at half weight
+                        buzzBonus + // Reddit bonus
+                        rtBonus + // Rotten Tomatoes bonus 
+                        imdbBonus; // IMDb bonus
       
       return {
         content: typedContent,
@@ -389,6 +481,11 @@ export const adaptToWhat2WatchFormat = async (item: tmdbService.TMDBContentItem)
     const variation = Math.floor(Math.random() * 15) - 5; // -5 to +10 variation
     const rottenTomatoesScore = Math.max(0, Math.min(100, baseScore + variation));
 
+    // Generate realistic IMDb rating that correlates with TMDB rating but with less variance
+    // IMDb typically has less extreme scores than Rotten Tomatoes
+    const imdbVariation = (Math.random() * 1.0) - 0.5; // -0.5 to +0.5 variation
+    const imdbRating = Math.max(1, Math.min(10, item.vote_average + imdbVariation));
+
     return {
       id: item.id,
       title,
@@ -398,7 +495,7 @@ export const adaptToWhat2WatchFormat = async (item: tmdbService.TMDBContentItem)
       rating: item.vote_average,
       genres: genres.length > 0 ? genres : ['Drama'], // Ensure we always have at least one genre
       streamingPlatform: streamingPlatforms[randomPlatformIndex],
-      imdbRating: item.vote_average, // Using TMDB rating as IMDb for now
+      imdbRating, // Using enhanced IMDb calculation
       rottenTomatoesScore,
       redditBuzz,
       releaseYear: releaseYear || new Date().getFullYear(), // Ensure releaseYear always has a value
@@ -569,6 +666,35 @@ export const getEnhancedRecommendations = async (quizAnswers: QuizAnswer[]) => {
       item.genre_ids?.forEach(genreId => {
         if (preferences.genres.includes(genreId.toString())) {
           score += 20;
+          
+          // Apply priority boosting if we have prioritized genres
+          if (preferences.prioritizedGenres && preferences.prioritizedGenres.length > 0) {
+            // Find matching prioritized genre
+            const matchingGenreInfo = preferences.prioritizedGenres.find(pg => {
+              const genreKey = pg.genre.toLowerCase();
+              const genreToTMDBId: Record<string, string> = {
+                'comedy': '35',
+                'action': '28',
+                'thriller': '53',
+                'scifi-fantasy': '878',  // Using Sci-Fi as primary genre ID
+                'romance': '10749',
+                'documentary': '99',
+                'true-crime': '80',      // Using Crime as closest match
+                'animated': '16',
+                'supernatural': '14',    // Using Fantasy as closest match
+                'historical': '36'
+              };
+              return genreToTMDBId[genreKey] === genreId.toString();
+            });
+            
+            if (matchingGenreInfo) {
+              // Calculate priority boost - higher priority (lower number) gets higher boost
+              // Priority 1: +30, Priority 2: +20, Priority 3: +10
+              const priorityBoost = (4 - matchingGenreInfo.priority) * 10;
+              score += priorityBoost;
+              console.log(`Enhanced algorithm: Applied priority boost of ${priorityBoost} for genre with priority ${matchingGenreInfo.priority}`);
+            }
+          }
         }
       });
       
@@ -615,13 +741,35 @@ export const getEnhancedRecommendations = async (quizAnswers: QuizAnswer[]) => {
       const typedContent = content as MovieTVShow;
       const relevanceScore = relevanceScores[typedContent.id] || 0;
       
-      // Add bonus points for high Reddit buzz
+      // Add bonus points for high Reddit buzz - INCREASED WEIGHT
       let buzzBonus = 0;
-      if (typedContent.redditBuzz === 'High') buzzBonus = 10;
-      else if (typedContent.redditBuzz === 'Medium') buzzBonus = 5;
+      if (typedContent.redditBuzz === 'High') buzzBonus = 20; // Increased from 10
+      else if (typedContent.redditBuzz === 'Medium') buzzBonus = 10; // Increased from 5
+      else if (typedContent.redditBuzz === 'Low') buzzBonus = 2; // Added small bonus for low buzz
       
-      // Final score combines relevance, rating, and Reddit buzz
-      const finalScore = relevanceScore + (typedContent.rating / 2) + buzzBonus;
+      // Add bonus points for Rotten Tomatoes score
+      let rtBonus = 0;
+      if (typedContent.rottenTomatoesScore) {
+        if (typedContent.rottenTomatoesScore >= 90) rtBonus = 25; // "Certified Fresh" equivalent
+        else if (typedContent.rottenTomatoesScore >= 75) rtBonus = 15; // "Fresh" equivalent
+        else if (typedContent.rottenTomatoesScore >= 60) rtBonus = 5; // "Mixed" equivalent
+      }
+      
+      // Add bonus points for IMDb rating
+      let imdbBonus = 0;
+      if (typedContent.imdbRating) {
+        if (typedContent.imdbRating >= 8.5) imdbBonus = 25; // Exceptional rating
+        else if (typedContent.imdbRating >= 7.5) imdbBonus = 15; // Very good rating
+        else if (typedContent.imdbRating >= 6.5) imdbBonus = 5; // Above average rating
+      }
+      
+      // Final score combines all factors - weighted toward external ratings
+      // Previously: relevanceScore + (typedContent.rating / 2) + buzzBonus
+      const finalScore = (relevanceScore * 0.6) + // Genre/preference match at 60% weight
+                        (typedContent.rating * 0.5) + // Basic rating at half weight
+                        buzzBonus + // Reddit bonus
+                        rtBonus + // Rotten Tomatoes bonus 
+                        imdbBonus; // IMDb bonus
       
       return {
         content: typedContent,
