@@ -13,9 +13,9 @@ const getStreamingPlatformUrl = (platform: string, title?: string): string => {
   // Normalize platform name by removing spaces and converting to lowercase
   const normalizedPlatform = platform.toLowerCase().replace(/\s+/g, '');
   
-  // Map of streaming platforms to their base URLs
+  // Map of streaming platforms to their base URLs - explicitly using US versions
   const platformUrls: Record<string, string> = {
-    'netflix': 'https://www.netflix.com/search?q=',
+    'netflix': 'https://www.netflix.com/us/search?q=',
     'prime': 'https://www.amazon.com/s?k=',
     'primevideo': 'https://www.amazon.com/s?k=',
     'hulu': 'https://www.hulu.com/search?q=',
@@ -23,17 +23,17 @@ const getStreamingPlatformUrl = (platform: string, title?: string): string => {
     'disneyplus': 'https://www.disneyplus.com/search?q=',
     'hbomax': 'https://www.max.com/search?q=',
     'max': 'https://www.max.com/search?q=',
-    'appletv+': 'https://tv.apple.com/search?term=',
-    'appletv': 'https://tv.apple.com/search?term=',
+    'appletv+': 'https://tv.apple.com/us/search?term=',
+    'appletv': 'https://tv.apple.com/us/search?term=',
     'peacock': 'https://www.peacocktv.com/search?q=',
-    'paramount+': 'https://www.paramountplus.com/search/?q=',
-    'paramountplus': 'https://www.paramountplus.com/search/?q=',
+    'paramount+': 'https://www.paramountplus.com/us/search/?q=',
+    'paramountplus': 'https://www.paramountplus.com/us/search/?q=',
     'starz': 'https://www.starz.com/us/en/search?q=',
     'showtime': 'https://www.sho.com/search?q='
   };
   
   // Get URL for the platform if it exists in our map
-  const baseUrl = platformUrls[normalizedPlatform] || `https://www.google.com/search?q=watch+on+${encodeURIComponent(platform)}+`;
+  const baseUrl = platformUrls[normalizedPlatform] || `https://www.google.com/search?q=watch+on+${encodeURIComponent(platform)}+in+US+`;
   
   // Append the title to the URL if provided
   return title ? `${baseUrl}${encodeURIComponent(title)}` : baseUrl;
