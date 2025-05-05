@@ -275,8 +275,26 @@ export default function ContentCard({
   const [hasWatched, setHasWatched] = useState(false);
   const [showMoreInfo, setShowMoreInfo] = useState(false);
   const [showAllPlatforms, setShowAllPlatforms] = useState(false);
+  const [showSaveNotification, setShowSaveNotification] = useState(false);
+  const [showWatchedNotification, setShowWatchedNotification] = useState(false);
   const retried = useRef(false);
   const isMobile = useMediaQuery('(max-width: 640px)');
+  
+  // Add timeout refs to clear notification timeouts when component unmounts
+  const saveNotificationTimeout = useRef<NodeJS.Timeout | null>(null);
+  const watchedNotificationTimeout = useRef<NodeJS.Timeout | null>(null);
+  
+  // Clear timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (saveNotificationTimeout.current) {
+        clearTimeout(saveNotificationTimeout.current);
+      }
+      if (watchedNotificationTimeout.current) {
+        clearTimeout(watchedNotificationTimeout.current);
+      }
+    };
+  }, []);
   
   // Check if the item is in saved watchlist on component mount
   useEffect(() => {
@@ -346,6 +364,21 @@ export default function ContentCard({
           posterPath: content.posterPath,
           savedAt: new Date().toISOString()
         });
+        
+        // Show notification only when saving (not when removing)
+        if (isUserLoggedIn) {
+          setShowSaveNotification(true);
+          
+          // Clear any existing timeout
+          if (saveNotificationTimeout.current) {
+            clearTimeout(saveNotificationTimeout.current);
+          }
+          
+          // Hide notification after 3 seconds
+          saveNotificationTimeout.current = setTimeout(() => {
+            setShowSaveNotification(false);
+          }, 3000);
+        }
       }
       
       // Save to localStorage
@@ -380,6 +413,21 @@ export default function ContentCard({
           type: content.type,
           watchedAt: new Date().toISOString()
         });
+        
+        // Show notification only when marking as watched (not when removing)
+        if (isUserLoggedIn) {
+          setShowWatchedNotification(true);
+          
+          // Clear any existing timeout
+          if (watchedNotificationTimeout.current) {
+            clearTimeout(watchedNotificationTimeout.current);
+          }
+          
+          // Hide notification after 3 seconds
+          watchedNotificationTimeout.current = setTimeout(() => {
+            setShowWatchedNotification(false);
+          }, 3000);
+        }
       }
       
       // Save to localStorage
@@ -411,6 +459,19 @@ export default function ContentCard({
   
   return (
     <div className={`bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 flex flex-col h-full ${className}`}>
+      {/* Success notifications */}
+      {showSaveNotification && (
+        <div className="absolute top-2 left-1/2 transform -translate-x-1/2 bg-green-500 text-white text-sm py-1.5 px-3 rounded-full shadow-md z-10 animate-fadeIn">
+          Successfully saved to your watchlist
+        </div>
+      )}
+      
+      {showWatchedNotification && (
+        <div className="absolute top-2 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white text-sm py-1.5 px-3 rounded-full shadow-md z-10 animate-fadeIn">
+          Marked as watched
+        </div>
+      )}
+      
       {/* Poster Image with match percentage overlay */}
       <div className="relative aspect-[2/3] bg-gray-100">
         {/* Skeleton loader */}
