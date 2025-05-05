@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { MovieTVShow } from '../types';
-import { FaArrowLeft, FaInfoCircle, FaFilter, FaSlidersH, FaSearch, FaTrophy } from 'react-icons/fa';
+import { FaArrowLeft, FaInfoCircle, FaFilter, FaSlidersH, FaSearch, FaTrophy, FaUserPlus, FaSignInAlt, FaTimes } from 'react-icons/fa';
 import supabaseService from '../services/supabase-wrapper';
 import ContentCard from './ContentCard';
 
@@ -12,6 +12,64 @@ interface RecommendationsProps {
   sessionId?: string;
 }
 
+// Authentication Modal Component
+const AuthModal = ({ isOpen, onClose, onSignIn, onSignUp }: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSignIn: () => void;
+  onSignUp: () => void;
+}) => {
+  if (!isOpen) return null;
+  
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 relative">
+        <button 
+          onClick={onClose}
+          className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
+          aria-label="Close"
+        >
+          <FaTimes size={20} />
+        </button>
+        
+        <div className="text-center mb-6">
+          <h3 className="text-2xl font-bold text-gray-800 mb-2">
+            Save Your Favorites
+          </h3>
+          <p className="text-gray-600">
+            Create an account to save movies and shows to your watchlist and get personalized recommendations.
+          </p>
+        </div>
+        
+        <div className="space-y-4">
+          <button
+            onClick={onSignUp}
+            className="w-full bg-gradient-to-r from-pink-500 to-orange-400 text-white py-3 px-4 rounded-lg flex items-center justify-center font-medium hover:shadow-md transition-all"
+          >
+            <FaUserPlus className="mr-2" />
+            Create an Account
+          </button>
+          
+          <button
+            onClick={onSignIn}
+            className="w-full border border-pink-500 text-pink-500 py-3 px-4 rounded-lg flex items-center justify-center font-medium hover:bg-pink-50 transition-colors"
+          >
+            <FaSignInAlt className="mr-2" />
+            Sign In
+          </button>
+          
+          <button
+            onClick={onClose}
+            className="w-full text-gray-500 py-2 hover:text-gray-700 transition-colors"
+          >
+            Maybe Later
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function Recommendations({ recommendations, onRetakeQuiz, sessionId }: RecommendationsProps) {
   const [visibleCount, setVisibleCount] = useState<number>(6);
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -20,6 +78,7 @@ export default function Recommendations({ recommendations, onRetakeQuiz, session
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [allRecommendations, setAllRecommendations] = useState<MovieTVShow[]>(recommendations);
   const [canLoadMore, setCanLoadMore] = useState<boolean>(true);
+  const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
 
   // Fetch user on component mount
   useEffect(() => {
@@ -85,6 +144,10 @@ export default function Recommendations({ recommendations, onRetakeQuiz, session
     window.location.href = '/signup';
   };
 
+  const handleAuthRequired = () => {
+    setShowAuthModal(true);
+  };
+
   const filteredRecommendations = allRecommendations.filter(item => {
     // Apply search filter
     if (searchQuery && !item.title.toLowerCase().includes(searchQuery.toLowerCase())) {
@@ -122,7 +185,7 @@ export default function Recommendations({ recommendations, onRetakeQuiz, session
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 text-black p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
-        {/* Header with back button and info bar */}
+        {/* Header with back button only (removed info bar) */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
           <button 
             onClick={onRetakeQuiz}
@@ -131,14 +194,6 @@ export default function Recommendations({ recommendations, onRetakeQuiz, session
             <FaArrowLeft className="mr-2" />
             <span>Back to Quiz</span>
           </button>
-          
-          <div className="flex items-center space-x-2 text-sm text-gray-500">
-            <span>Source:</span>
-            <span className="bg-pink-50 text-pink-600 px-2 py-1 rounded-full font-medium">
-              TMDB Popular
-            </span>
-            <FaInfoCircle className="text-gray-400" title="Results are based on popular picks from TMDB" />
-          </div>
         </div>
         
         {/* Main title with gradient */}
@@ -146,32 +201,6 @@ export default function Recommendations({ recommendations, onRetakeQuiz, session
           Here's what you should watch next
         </h1>
         <p className="text-gray-600 mb-8">Personalized recommendations based on your preferences</p>
-        
-        {/* Sign-in tip section - only show if user is not logged in */}
-        {!currentUser && (
-          <div className="bg-gradient-to-r from-pink-50 to-pink-100 rounded-lg p-6 mb-8 shadow-sm">
-            <p className="text-pink-800 font-medium mb-3 text-lg">
-              Want better recommendations? Sign in to save your preferences!
-            </p>
-            <p className="text-pink-700 mb-4 text-sm">
-              Create an account to keep track of what you've watched and get more personalized suggestions.
-            </p>
-            <div className="flex gap-3">
-              <button 
-                onClick={handleSignIn}
-                className="bg-gradient-to-r from-pink-500 to-orange-400 text-white px-6 py-2 rounded-md hover:shadow-md transition-all"
-              >
-                Sign In
-              </button>
-              <button 
-                onClick={handleCreateAccount}
-                className="border border-pink-500 text-pink-500 px-6 py-2 rounded-md hover:bg-pink-50 transition-colors"
-              >
-                Create Account
-              </button>
-            </div>
-          </div>
-        )}
         
         {/* Filters and search */}
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8">
@@ -277,6 +306,8 @@ export default function Recommendations({ recommendations, onRetakeQuiz, session
                       content={item} 
                       rank={index + 1}
                       className="border-2 border-gradient-pink-purple shadow-lg h-full"
+                      isUserLoggedIn={!!currentUser}
+                      onAuthRequired={handleAuthRequired}
                     />
                   </div>
                 </div>
@@ -307,6 +338,8 @@ export default function Recommendations({ recommendations, onRetakeQuiz, session
                 key={item.id} 
                 content={item}
                 className="hover:translate-y-[-5px] transition-transform"
+                isUserLoggedIn={!!currentUser}
+                onAuthRequired={handleAuthRequired}
               />
             ))}
           </div>
@@ -343,6 +376,14 @@ export default function Recommendations({ recommendations, onRetakeQuiz, session
             Test TMDB API
           </a>
         </div>
+        
+        {/* Authentication Modal */}
+        <AuthModal 
+          isOpen={showAuthModal}
+          onClose={() => setShowAuthModal(false)}
+          onSignIn={handleSignIn}
+          onSignUp={handleCreateAccount}
+        />
       </div>
     </div>
   );

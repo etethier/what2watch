@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { FaStar, FaTv, FaFilm, FaTrophy, FaReddit, FaFire, FaComments, FaHeart, FaRegHeart, FaBookmark, FaRegBookmark, FaThumbsUp, FaThumbsDown, FaInfoCircle, FaImdb, FaPlay, FaChevronDown, FaChevronUp } from 'react-icons/fa';
+import { FaStar, FaTv, FaFilm, FaTrophy, FaReddit, FaFire, FaComments, FaHeart, FaRegHeart, FaBookmark, FaRegBookmark, FaThumbsUp, FaThumbsDown, FaInfoCircle, FaImdb, FaPlay, FaChevronDown, FaChevronUp, FaEye } from 'react-icons/fa';
 import { IoFastFoodOutline } from 'react-icons/io5';
 import { BsChatSquareQuote, BsExclamationTriangle } from 'react-icons/bs';
 import { SiRottentomatoes } from 'react-icons/si';
@@ -46,39 +46,19 @@ interface ContentCardProps {
   };
   className?: string;
   rank?: number;
+  isUserLoggedIn?: boolean;
+  onAuthRequired?: () => void;
 }
 
-// Function to get rank colors based on rank
-const getRankColors = (rank?: number) => {
-  if (!rank || rank > 3) return null;
-  
-  if (rank === 1) {
-    return {
-      bg: 'bg-amber-100',
-      text: 'text-amber-800',
-      border: 'border-amber-500',
-      label: '#1 Top Match',
-      icon: <FaTrophy className="text-amber-500 mr-1" />
-    };
-  } else if (rank === 2) {
-    return {
-      bg: 'bg-gray-100',
-      text: 'text-gray-800',
-      border: 'border-gray-400',
-      label: '#2 Recommended',
-      icon: <FaTrophy className="text-gray-400 mr-1" />
-    };
-  } else if (rank === 3) {
-    return {
-      bg: 'bg-amber-50',
-      text: 'text-amber-700',
-      border: 'border-amber-300',
-      label: '#3 Great Match',
-      icon: <FaTrophy className="text-amber-300 mr-1" />
-    };
-  }
-  
-  return null;
+// Function to calculate match percentage based on rank
+const getMatchPercentage = (rank?: number): string => {
+  if (!rank) return '';
+  if (rank === 1) return '98%';
+  if (rank === 2) return '95%';
+  if (rank === 3) return '92%';
+  if (rank <= 5) return '90%';
+  if (rank <= 10) return '85%';
+  return '80%';
 };
 
 // Enhanced Reddit buzz styling with sentiment analysis
@@ -89,9 +69,9 @@ const getRedditBuzzStyle = (buzzType?: EnhancedBuzzType | 'High' | 'Medium' | 'L
         bg: 'bg-green-100',
         text: 'text-green-700',
         border: 'border-green-200',
-        icon: <FaReddit className="text-green-500 mr-1" />,
-        label: 'Reddit: Very Popular',
-        shortLabel: 'Hot on Reddit',
+        icon: <FaFire className="text-green-600" size={14} />,
+        label: 'Very Popular',
+        description: 'Positive',
         tooltip: 'Highly discussed with positive sentiment on Reddit',
         meter: 4
       };
@@ -100,9 +80,9 @@ const getRedditBuzzStyle = (buzzType?: EnhancedBuzzType | 'High' | 'Medium' | 'L
         bg: 'bg-red-100',
         text: 'text-red-700',
         border: 'border-red-200',
-        icon: <FaReddit className="text-red-500 mr-1" />,
-        label: 'Reddit: Criticized',
-        shortLabel: 'Criticized',
+        icon: <FaFire className="text-red-600" size={14} />,
+        description: 'Negative',
+        label: 'Criticized',
         tooltip: 'Widely discussed with negative sentiment on Reddit',
         meter: 4
       };
@@ -111,9 +91,9 @@ const getRedditBuzzStyle = (buzzType?: EnhancedBuzzType | 'High' | 'Medium' | 'L
         bg: 'bg-orange-100',
         text: 'text-orange-700',
         border: 'border-orange-200',
-        icon: <FaReddit className="text-orange-500 mr-1" />,
-        label: 'Reddit: Debated',
-        shortLabel: 'Debated',
+        icon: <FaFire className="text-orange-600" size={14} />,
+        label: 'Debated',
+        description: 'Mixed',
         tooltip: 'Popular with mixed opinions on Reddit',
         meter: 4
       };
@@ -122,9 +102,9 @@ const getRedditBuzzStyle = (buzzType?: EnhancedBuzzType | 'High' | 'Medium' | 'L
         bg: 'bg-blue-100',
         text: 'text-blue-700',
         border: 'border-blue-200',
-        icon: <FaComments className="text-blue-500 mr-1" />,
-        label: 'Reddit: Talked About',
-        shortLabel: 'Discussed',
+        icon: <FaComments className="text-blue-600" size={14} />,
+        label: 'Active',
+        description: 'Discussed',
         tooltip: 'Active discussions on Reddit communities',
         meter: 3
       };
@@ -133,9 +113,9 @@ const getRedditBuzzStyle = (buzzType?: EnhancedBuzzType | 'High' | 'Medium' | 'L
         bg: 'bg-purple-100', 
         text: 'text-purple-700',
         border: 'border-purple-200',
-        icon: <BsExclamationTriangle className="text-purple-500 mr-1" />,
-        label: 'Reddit: Controversial',
-        shortLabel: 'Controversial',
+        icon: <BsExclamationTriangle className="text-purple-600" size={14} />,
+        label: 'Controversial',
+        description: 'Divided',
         tooltip: 'Causing divided opinions on Reddit',
         meter: 3
       };
@@ -144,9 +124,9 @@ const getRedditBuzzStyle = (buzzType?: EnhancedBuzzType | 'High' | 'Medium' | 'L
         bg: 'bg-yellow-100',
         text: 'text-yellow-700',
         border: 'border-yellow-200',
-        icon: <BsChatSquareQuote className="text-yellow-500 mr-1" />,
-        label: 'Reddit: Niche Interest',
-        shortLabel: 'Niche',
+        icon: <BsChatSquareQuote className="text-yellow-600" size={14} />,
+        label: 'Niche',
+        description: 'Specific',
         tooltip: 'Moderate discussion in specific communities',
         meter: 2
       };
@@ -155,9 +135,9 @@ const getRedditBuzzStyle = (buzzType?: EnhancedBuzzType | 'High' | 'Medium' | 'L
         bg: 'bg-orange-100',
         text: 'text-orange-700',
         border: 'border-orange-200',
-        icon: <FaReddit className="text-orange-500 mr-1" />,
-        label: 'Reddit: Popular',
-        shortLabel: 'Popular',
+        icon: <FaFire className="text-orange-600" size={14} />,
+        label: 'Popular',
+        description: 'High',
         tooltip: 'High activity level on Reddit',
         meter: 3
       };
@@ -166,9 +146,9 @@ const getRedditBuzzStyle = (buzzType?: EnhancedBuzzType | 'High' | 'Medium' | 'L
         bg: 'bg-amber-50',
         text: 'text-amber-700',
         border: 'border-amber-200',
-        icon: <FaReddit className="text-amber-500 mr-1" />,
-        label: 'Reddit: Active',
-        shortLabel: 'Active',
+        icon: <FaComments className="text-amber-600" size={14} />,
+        label: 'Active',
+        description: 'Medium',
         tooltip: 'Medium activity level on Reddit',
         meter: 2
       };
@@ -177,9 +157,9 @@ const getRedditBuzzStyle = (buzzType?: EnhancedBuzzType | 'High' | 'Medium' | 'L
         bg: 'bg-gray-100',
         text: 'text-gray-700',
         border: 'border-gray-200',
-        icon: <FaReddit className="text-gray-400 mr-1" />,
-        label: 'Reddit: Minor Buzz',
-        shortLabel: 'Minor Buzz',
+        icon: <BsChatSquareQuote className="text-gray-500" size={13} />,
+        label: 'Minor',
+        description: 'Low',
         tooltip: 'Low activity level on Reddit',
         meter: 1
       };
@@ -219,13 +199,81 @@ function useMediaQuery(query: string) {
   return matches;
 }
 
-export default function ContentCard({ content, className = '', rank }: ContentCardProps) {
+// Separate component for Reddit Buzz indicator to maintain isolated tooltip state
+const RedditBuzzIndicator = ({ buzzStyle, buzzType }: { 
+  buzzStyle: NonNullable<ReturnType<typeof getRedditBuzzStyle>>, 
+  buzzType?: EnhancedBuzzType | 'High' | 'Medium' | 'Low' 
+}) => {
+  const [showTooltip, setShowTooltip] = useState(false);
+  
+  return (
+    <div className="mb-2.5">
+      <div className="inline-flex items-center text-xs rounded-lg border border-gray-200 overflow-hidden shadow-sm relative">
+        {/* Left section with Reddit logo */}
+        <div className="bg-white px-2 py-1.5 flex items-center border-r border-gray-200">
+          <FaReddit className="text-red-500 mr-1" size={14} />
+          <span className="font-medium text-xs">Reddit Buzz</span>
+        </div>
+        
+        {/* Right section with buzz status */}
+        <div className={`${buzzStyle.bg} px-2.5 py-1.5 flex items-center`}>
+          {buzzStyle.icon}
+          
+          {/* Description with interactive tooltip */}
+          <div className="relative inline-block">
+            <span 
+              className="ml-1 font-semibold text-[11px] capitalize cursor-help border-b border-dotted"
+              onMouseEnter={() => setShowTooltip(true)}
+              onMouseLeave={() => setShowTooltip(false)}
+            >
+              {buzzStyle.description}
+            </span>
+            
+            {/* Tooltip that appears on hover */}
+            {showTooltip && (
+              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 -translate-y-1 bg-gray-800 text-white text-xs rounded py-1.5 px-2.5 whitespace-nowrap z-10 min-w-[150px] shadow-lg">
+                <strong>{buzzStyle.label}:</strong> {buzzStyle.tooltip}
+                <div className="absolute h-2 w-2 bg-gray-800 transform rotate-45 left-1/2 -ml-1 -bottom-1"></div>
+              </div>
+            )}
+          </div>
+          
+          {/* Activity meter as horizontal bar */}
+          <span className="ml-2 inline-flex h-1.5 w-12 bg-gray-200 rounded-full overflow-hidden">
+            <span 
+              className={`h-full ${
+                buzzStyle.meter === 4 ? 
+                  (buzzType === 'Trending Positive' ? 'bg-green-500' : 
+                   buzzType === 'Trending Negative' ? 'bg-red-500' : 
+                   'bg-orange-500') : 
+                buzzStyle.meter === 3 ? 
+                  (buzzType === 'Controversial' ? 'bg-purple-500' : 'bg-blue-500') : 
+                buzzStyle.meter === 2 ? 'bg-amber-500' : 
+                'bg-gray-500'
+              } ${buzzStyle.meter === 4 ? 'w-full' : 
+                  buzzStyle.meter === 3 ? 'w-3/4' : 
+                  buzzStyle.meter === 2 ? 'w-1/2' : 
+                  'w-1/4'}`}
+            />
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default function ContentCard({ 
+  content, 
+  className = '', 
+  rank,
+  isUserLoggedIn = false,
+  onAuthRequired
+}: ContentCardProps) {
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
-  const [feedbackGiven, setFeedbackGiven] = useState<'liked' | 'disliked' | null>(null);
-  const [showFeedbackThanks, setShowFeedbackThanks] = useState(false);
-  const [showDetails, setShowDetails] = useState(false);
+  const [hasWatched, setHasWatched] = useState(false);
+  const [showMoreInfo, setShowMoreInfo] = useState(false);
   const [showAllPlatforms, setShowAllPlatforms] = useState(false);
   const retried = useRef(false);
   const isMobile = useMediaQuery('(max-width: 640px)');
@@ -240,28 +288,14 @@ export default function ContentCard({ content, className = '', rank }: ContentCa
         setIsSaved(watchlist.some((item: any) => item.id === content.id));
       }
       
-      // Check for existing feedback
-      const feedbackData = localStorage.getItem('recommendation_feedback');
-      if (feedbackData) {
-        const feedback = JSON.parse(feedbackData);
-        const existingFeedback = feedback.find((item: any) => item.contentId === content.id);
-        if (existingFeedback) {
-          setFeedbackGiven(existingFeedback.type);
-        }
+      // Check if user has watched this content
+      const watchedContent = localStorage.getItem('watched_content');
+      if (watchedContent) {
+        const watched = JSON.parse(watchedContent);
+        setHasWatched(watched.some((item: any) => item.id === content.id));
       }
     }
   }, [content.id]);
-  
-  // Hide the feedback thanks message after 3 seconds
-  useEffect(() => {
-    if (showFeedbackThanks) {
-      const timer = setTimeout(() => {
-        setShowFeedbackThanks(false);
-      }, 3000);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [showFeedbackThanks]);
   
   // Use the releaseYear from TMDB if available, otherwise use current year
   const year = content.releaseYear || new Date().getFullYear();
@@ -271,17 +305,10 @@ export default function ContentCard({ content, className = '', rank }: ContentCa
     console.warn(`Image error for: ${content.title}`);
     setImageError(true);
     
-    // Set a data attribute to help with debugging
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Image load failed for:', content.title, content.posterPath);
-    }
-    
     // Try to load the image again once after a short delay
-    // This helps with transient network issues
     if (!retried.current) {
       retried.current = true;
       setTimeout(() => {
-        // Reset the error state and try loading again
         setImageError(false);
         setImageLoaded(false);
       }, 1500);
@@ -296,6 +323,12 @@ export default function ContentCard({ content, className = '', rank }: ContentCa
   
   // Toggle watchlist status
   const toggleWatchlist = () => {
+    // If user is not logged in and tries to save, show auth prompt
+    if (!isUserLoggedIn && !isSaved && onAuthRequired) {
+      onAuthRequired();
+      return;
+    }
+    
     if (typeof window !== 'undefined') {
       // Get current watchlist
       const savedWatchlist = localStorage.getItem('watchlist');
@@ -320,61 +353,49 @@ export default function ContentCard({ content, className = '', rank }: ContentCa
       
       // Update state
       setIsSaved(!isSaved);
-      
-      // Show a toast message
-      const message = isSaved 
-        ? `${content.title} removed from watchlist` 
-        : `${content.title} added to watchlist`;
-      
-      // You could implement a toast notification system here
-      console.log(message);
     }
   };
   
-  // Record recommendation feedback
-  const recordFeedback = (type: 'liked' | 'disliked') => {
+  // Toggle watched status
+  const toggleWatched = () => {
+    // If user is not logged in and tries to mark as watched, show auth prompt
+    if (!isUserLoggedIn && !hasWatched && onAuthRequired) {
+      onAuthRequired();
+      return;
+    }
+    
     if (typeof window !== 'undefined') {
-      // Get current feedback data
-      const feedbackData = localStorage.getItem('recommendation_feedback');
-      let feedback = feedbackData ? JSON.parse(feedbackData) : [];
+      // Get current watched content
+      const watchedContent = localStorage.getItem('watched_content');
+      let watched = watchedContent ? JSON.parse(watchedContent) : [];
       
-      // Get algorithm information (if available)
-      const algorithm = localStorage.getItem('recommendation_algorithm') || undefined;
-      
-      // Remove any existing feedback for this content
-      feedback = feedback.filter((item: any) => item.contentId !== content.id);
-      
-      // Add new feedback
-      feedback.push({
-        contentId: content.id,
-        title: content.title,
-        type,
-        rank: rank || 0,
-        timestamp: new Date().toISOString(),
-        genres: content.genres || [],
-        algorithm // Include the algorithm used for A/B testing
-      });
+      if (hasWatched) {
+        // Remove from watched
+        watched = watched.filter((item: any) => item.id !== content.id);
+      } else {
+        // Add to watched
+        watched.push({
+          id: content.id,
+          title: content.title,
+          type: content.type,
+          watchedAt: new Date().toISOString()
+        });
+      }
       
       // Save to localStorage
-      localStorage.setItem('recommendation_feedback', JSON.stringify(feedback));
+      localStorage.setItem('watched_content', JSON.stringify(watched));
       
       // Update state
-      setFeedbackGiven(type);
-      setShowFeedbackThanks(true);
-      
-      // In a real app, you would send this to your analytics/backend
-      // sendRecommendationFeedback(content.id, type, rank);
-      console.log(`Recommendation feedback recorded for ${content.title}: ${type}`);
+      setHasWatched(!hasWatched);
     }
   };
   
-  // Toggle details view
-  const toggleDetails = () => {
-    setShowDetails(!showDetails);
+  // Toggle more info view
+  const toggleMoreInfo = () => {
+    setShowMoreInfo(!showMoreInfo);
   };
 
-  // We still calculate rankColors for use in other places, but we won't show the badge on the image
-  const rankColors = getRankColors(rank);
+  const matchPercentage = getMatchPercentage(rank);
   const redditBuzzStyle = getRedditBuzzStyle(content.redditBuzz);
   
   // Convert streamingPlatform to array for consistent handling
@@ -389,8 +410,8 @@ export default function ContentCard({ content, className = '', rank }: ContentCa
   const displayPlatforms = showAllPlatforms ? platforms : platforms.slice(0, 1);
   
   return (
-    <div className={`relative bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 ${className}`}>
-      {/* Poster Image Container with fixed aspect ratio */}
+    <div className={`bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 flex flex-col h-full ${className}`}>
+      {/* Poster Image with match percentage overlay */}
       <div className="relative aspect-[2/3] bg-gray-100">
         {/* Skeleton loader */}
         {!imageLoaded && !imageError && (
@@ -425,101 +446,116 @@ export default function ContentCard({ content, className = '', rank }: ContentCa
           </div>
         )}
         
-        {/* Dark gradient overlay at the bottom for better visibility */}
+        {/* Dark gradient overlay at the bottom for better visibility of title */}
         <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/70 to-transparent"></div>
+
+        {/* Watched indicator badge */}
+        {hasWatched && (
+          <div className="absolute top-2 right-2 bg-blue-500/90 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center">
+            <FaEye className="mr-1" size={10} />
+            <span>Watched</span>
+          </div>
+        )}
       </div>
       
-      {/* Content Details - Slimmed down version */}
-      <div className="p-4">
+      {/* ===== TOP SECTION: Title and Match % ===== */}
+      <div className="p-3 pb-1 border-b border-gray-100">
         {/* Title with ellipsis for long titles */}
         <h3 className="font-bold text-lg line-clamp-1" title={content.title}>
           {content.title}
         </h3>
         
-        {/* Metadata row - Updated with rating icons */}
-        <div className="flex items-center justify-between text-sm text-gray-500 mt-1 mb-2">
+        {/* Match percentage if available */}
+        {matchPercentage && (
+          <div className="flex items-center mt-1.5">
+            <div className={`h-2 w-2 rounded-full mr-2 ${
+              rank && rank <= 3 ? 'bg-green-500' : 'bg-green-400'
+            }`}></div>
+            <span className="font-medium text-green-700 text-sm">
+              {matchPercentage} Match
+            </span>
+          </div>
+        )}
+      </div>
+      
+      {/* ===== MIDDLE SECTION: Genre tags, Content type, Streaming, Buzz ===== */}
+      <div className="p-3 pb-2 border-b border-gray-100 flex-grow">
+        {/* Top row with content type and ratings */}
+        <div className="flex items-center justify-between text-xs text-gray-500 mb-2.5">
           <div className="flex items-center gap-2">
-            {/* Content Type */}
-            <span className="flex items-center">
+            {/* Content Type Tag */}
+            <span className={`inline-flex items-center px-2 py-0.5 rounded-full ${
+              content.type === 'movie' 
+                ? 'bg-blue-50 text-blue-700' 
+                : 'bg-purple-50 text-purple-700'
+            }`}>
               {content.type === 'movie' ? (
-                <FaFilm className="mr-1 text-gray-400" size={12} />
+                <FaFilm className="mr-1" size={10} />
               ) : (
-                <FaTv className="mr-1 text-gray-400" size={12} />
+                <FaTv className="mr-1" size={10} />
               )}
               {content.type === 'movie' ? 'Movie' : 'TV'}
             </span>
             
-            {/* IMDb Rating */}
-            {content.imdbRating && content.imdbRating > 0 && (
-              <div className="flex items-center">
-                <FaImdb className="text-yellow-600 mr-1" />
-                <span>{content.imdbRating.toFixed(1)}</span>
-              </div>
-            )}
-            
-            {/* Rotten Tomatoes Score */}
-            {content.rottenTomatoesScore && content.rottenTomatoesScore > 0 && (
-              <div className="flex items-center">
-                <SiRottentomatoes className={`mr-1 ${
-                  content.rottenTomatoesScore >= 75 ? 'text-green-600' : 
-                  content.rottenTomatoesScore >= 60 ? 'text-yellow-500' : 
-                  'text-red-600'
-                }`} />
-                <span>{content.rottenTomatoesScore}%</span>
-              </div>
+            {/* Optional: Release Year */}
+            {content.releaseYear && (
+              <span className="text-gray-500">{content.releaseYear}</span>
             )}
           </div>
           
-          {/* Reddit Buzz - improved display */}
-          {redditBuzzStyle && (
-            <span 
-              className={`inline-flex items-center text-xs rounded-full px-2 py-0.5 ${redditBuzzStyle.bg} ${redditBuzzStyle.text} relative group cursor-help`}
-              title={redditBuzzStyle.tooltip}
-            >
-              {redditBuzzStyle.icon}
-              <span className="inline">
-                {isMobile ? redditBuzzStyle.shortLabel : redditBuzzStyle.label}
-              </span>
+          {/* Ratings Group - only show if available */}
+          {(content.imdbRating || content.rottenTomatoesScore) && (
+            <div className="flex items-center gap-1.5">
+              {/* IMDb Rating */}
+              {content.imdbRating && content.imdbRating > 0 && (
+                <div className="flex items-center">
+                  <FaImdb className="text-yellow-600 mr-0.5" size={12} />
+                  <span>{content.imdbRating.toFixed(1)}</span>
+                </div>
+              )}
               
-              {/* Activity meter */}
-              <span className="ml-1 inline-flex items-center">
-                {[...Array(4)].map((_, i) => (
-                  <span 
-                    key={i} 
-                    className={`h-1.5 w-1.5 rounded-full mx-0.5 ${
-                      i < redditBuzzStyle.meter 
-                        ? redditBuzzStyle.text.replace('text', 'bg') 
-                        : 'bg-gray-200'
-                    }`}
-                  />
-                ))}
-              </span>
-              
-              {/* Tooltip on hover */}
-              <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 -translate-y-1 bg-gray-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none z-10">
-                {redditBuzzStyle.tooltip}
-              </span>
-            </span>
+              {/* Rotten Tomatoes Score */}
+              {content.rottenTomatoesScore && content.rottenTomatoesScore > 0 && (
+                <div className="flex items-center">
+                  <SiRottentomatoes className={`mr-0.5 ${
+                    content.rottenTomatoesScore >= 75 ? 'text-green-600' : 
+                    content.rottenTomatoesScore >= 60 ? 'text-yellow-500' : 
+                    'text-red-600'
+                  }`} size={12} />
+                  <span>{content.rottenTomatoesScore}%</span>
+                </div>
+              )}
+            </div>
           )}
         </div>
         
-        {/* Top 3 tags or genres */}
-        <div className="flex flex-wrap gap-1 mt-2">
-          {content.genres.slice(0, 3).map((genre, index) => (
-            <span key={index} className="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded">
-              {genre}
-            </span>
-          ))}
-          {content.genres.length > 3 && (
-            <span className="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded">
-              +{content.genres.length - 3}
-            </span>
-          )}
-        </div>
+        {/* Genre tags */}
+        {content.genres && content.genres.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-2.5">
+            {content.genres.slice(0, 3).map((genre, index) => (
+              <span key={index} className="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded">
+                {genre}
+              </span>
+            ))}
+            {content.genres.length > 3 && (
+              <span className="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded">
+                +{content.genres.length - 3}
+              </span>
+            )}
+          </div>
+        )}
         
-        {/* Streaming Platform - Multiple platforms support */}
+        {/* Reddit Buzz indicator */}
+        {redditBuzzStyle && (
+          <RedditBuzzIndicator 
+            buzzStyle={redditBuzzStyle} 
+            buzzType={content.redditBuzz as EnhancedBuzzType | 'High' | 'Medium' | 'Low'} 
+          />
+        )}
+        
+        {/* Streaming Platform availability */}
         {platforms.length > 0 && (
-          <div className="mt-2">
+          <div className="mb-1">
             <div className="flex flex-col space-y-1">
               {displayPlatforms.map((platform, index) => (
                 <a 
@@ -527,7 +563,7 @@ export default function ContentCard({ content, className = '', rank }: ContentCa
                   href={getStreamingPlatformUrl(platform, content.title)}
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="relative group text-xs px-2.5 py-1 rounded-md inline-flex items-center transition-all border border-gray-200 hover:border-pink-200 bg-gray-50 hover:bg-pink-50 text-gray-700"
+                  className="text-xs px-2.5 py-1 rounded-md inline-flex items-center transition-all border border-gray-200 hover:border-pink-200 bg-gray-50 hover:bg-pink-50 text-gray-700"
                 >
                   <FaPlay className="w-2.5 h-2.5 mr-1.5 text-pink-500" />
                   <span className="font-medium">
@@ -540,7 +576,7 @@ export default function ContentCard({ content, className = '', rank }: ContentCa
               {hasMultiplePlatforms && (
                 <button 
                   onClick={() => setShowAllPlatforms(!showAllPlatforms)}
-                  className="text-xs text-pink-500 hover:text-pink-600 flex items-center justify-center mt-1"
+                  className="text-xs text-pink-500 hover:text-pink-600 flex items-center justify-center"
                 >
                   {showAllPlatforms ? (
                     <>
@@ -558,173 +594,77 @@ export default function ContentCard({ content, className = '', rank }: ContentCa
             </div>
           </div>
         )}
-        
-        {/* Compact match info for top 3 */}
-        {rank && rank <= 3 && (
-          <div className="mt-3 text-sm">
-            <div className="flex items-center">
-              <div className={`h-2 w-2 rounded-full mr-2 ${rank === 1 ? 'bg-green-500' : rank === 2 ? 'bg-green-400' : 'bg-green-300'}`}></div>
-              <span className="font-medium text-green-700">
-                {rank === 1 ? '98%' : rank === 2 ? '95%' : '92%'} Match
-              </span>
-            </div>
-          </div>
-        )}
-        
-        {/* Action buttons - simplified */}
-        <div className="mt-3 grid grid-cols-3 gap-2">
-          <button 
-            onClick={toggleWatchlist}
-            className={`flex items-center justify-center py-2 rounded-md text-sm transition-colors ${
-              isSaved 
-                ? 'bg-pink-100 text-pink-600 hover:bg-pink-200' 
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            {isSaved ? <FaBookmark /> : <FaRegBookmark />}
-            <span className="sr-only md:not-sr-only md:ml-1">
-              {isSaved ? 'Saved' : 'Save'}
-            </span>
-          </button>
-          
-          <TrailerButton 
-            title={content.title}
-            year={year}
-            type={content.type}
-            variant="minimal"
-            className="text-sm py-2"
-          />
-          
-          <button
-            onClick={toggleDetails}
-            className="flex items-center justify-center py-2 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 text-sm transition-colors"
-          >
-            <FaInfoCircle />
-            <span className="sr-only md:not-sr-only md:ml-1">
-              {showDetails ? 'Less' : 'More'}
-            </span>
-          </button>
-        </div>
-        
-        {/* Expandable details */}
-        {showDetails && (
-          <div className="mt-3 pt-3 border-t border-gray-100 animate-[fadeIn_0.3s_ease-in-out]">
-            {/* Overview */}
-            <p className="text-gray-600 text-sm mb-3" title={content.overview}>
-              {content.overview}
-            </p>
-            
-            {/* Reddit buzz information - detailed */}
-            {redditBuzzStyle && (
-              <div className="mb-3">
-                <h4 className="text-xs font-medium text-gray-500 mb-1">REDDIT ACTIVITY</h4>
-                <div className={`flex items-center p-2 rounded ${redditBuzzStyle.bg}`}>
-                  <div className="mr-3 p-2 rounded-full bg-white">
-                    {redditBuzzStyle.icon.type === FaReddit ? 
-                      <FaReddit className="text-xl text-orange-500" /> : 
-                      redditBuzzStyle.icon}
-                  </div>
-                  <div>
-                    <p className={`font-medium ${redditBuzzStyle.text}`}>{redditBuzzStyle.label}</p>
-                    <p className="text-xs text-gray-600 mt-0.5">{redditBuzzStyle.tooltip}</p>
-                    <div className="flex items-center mt-1">
-                      <div className="h-2 bg-gray-200 rounded-full flex-grow mr-2">
-                        <div 
-                          className={`h-2 rounded-full ${redditBuzzStyle.text.replace('text', 'bg')}`}
-                          style={{ width: `${(redditBuzzStyle.meter / 4) * 100}%` }}
-                        />
-                      </div>
-                      <span className="text-xs text-gray-600">{redditBuzzStyle.meter}/4</span>
-                    </div>
-                  </div>
-                </div>
-                <p className="text-xs text-gray-500 mt-1.5">
-                  Based on Reddit discussions, comments, and sentiment analysis
-                </p>
-              </div>
-            )}
-            
-            {/* Streaming info with updated styling to be more subtle */}
-            {platforms.length > 0 && (
-              <div className="mb-3">
-                <h4 className="text-xs font-medium text-gray-500 mb-1">WHERE TO WATCH</h4>
-                <div className="space-y-1.5">
-                  {platforms.map((platform, index) => (
-                    <a 
-                      key={index}
-                      href={getStreamingPlatformUrl(platform, content.title)}
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="relative group text-xs px-3 py-1.5 rounded-md inline-flex items-center transition-all border border-gray-200 hover:border-pink-200 bg-gray-50 hover:bg-pink-50 text-gray-700 w-full"
-                    >
-                      <FaPlay className="w-3 h-3 mr-2 text-pink-500" />
-                      <span className="font-medium">
-                        {platform}
-                      </span>
-                      {index === 0 && (
-                        <span className="ml-auto text-gray-400 text-[10px]">Primary</span>
-                      )}
-                    </a>
-                  ))}
-                </div>
-                <p className="text-xs text-gray-500 mt-1.5">
-                  {platforms.length > 1 
-                    ? `Available on ${platforms.length} streaming services` 
-                    : "Streaming options and pricing details available"}
-                </p>
-              </div>
-            )}
-            
-            {/* Quick feedback */}
-            <div className="mb-2">
-              <h4 className="text-xs font-medium text-gray-500 mb-1">
-                {feedbackGiven ? 'YOUR FEEDBACK' : 'WAS THIS HELPFUL?'}
-              </h4>
-              
-              {showFeedbackThanks ? (
-                <div className="text-center py-2 text-sm text-green-700">
-                  Thanks for your feedback!
-                </div>
-              ) : feedbackGiven ? (
-                <div className="flex items-center">
-                  <span className={`text-sm ${feedbackGiven === 'liked' ? 'text-green-600' : 'text-red-600'} flex items-center`}>
-                    {feedbackGiven === 'liked' ? (
-                      <>
-                        <FaThumbsUp className="mr-1" /> Helpful
-                      </>
-                    ) : (
-                      <>
-                        <FaThumbsDown className="mr-1" /> Not helpful
-                      </>
-                    )}
-                  </span>
-                  <button 
-                    onClick={() => setFeedbackGiven(null)}
-                    className="ml-auto text-xs text-gray-500 hover:text-gray-700"
-                  >
-                    Change
-                  </button>
-                </div>
-              ) : (
-                <div className="flex gap-2">
-                  <button 
-                    onClick={() => recordFeedback('liked')}
-                    className="flex items-center justify-center py-1 px-2 bg-green-50 border border-green-200 rounded-md text-green-700 hover:bg-green-100 transition-colors text-sm"
-                  >
-                    <FaThumbsUp className="mr-1" /> Yes
-                  </button>
-                  <button 
-                    onClick={() => recordFeedback('disliked')}
-                    className="flex items-center justify-center py-1 px-2 bg-red-50 border border-red-200 rounded-md text-red-700 hover:bg-red-100 transition-colors text-sm"
-                  >
-                    <FaThumbsDown className="mr-1" /> No
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
       </div>
+      
+      {/* ===== BOTTOM SECTION: Interactive buttons ===== */}
+      <div className="p-3 pt-2 grid grid-cols-4 gap-1.5">
+        {/* Save button */}
+        <button 
+          onClick={toggleWatchlist}
+          className={`flex flex-col items-center justify-center py-2 px-1 rounded text-xs transition-colors ${
+            isSaved 
+              ? 'bg-pink-100 text-pink-600 hover:bg-pink-200' 
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+          title={isSaved ? "Remove from watchlist" : "Save to watchlist"}
+        >
+          {isSaved ? <FaBookmark size={16} className="mb-1" /> : <FaRegBookmark size={16} className="mb-1" />}
+          <span>Save</span>
+        </button>
+        
+        {/* Trailer button */}
+        <TrailerButton 
+          title={content.title}
+          year={year}
+          type={content.type}
+          variant="minimal"
+          className="flex flex-col items-center justify-center py-2 px-1 rounded text-xs"
+        />
+        
+        {/* Seen it button */}
+        <button
+          onClick={toggleWatched}
+          className={`flex flex-col items-center justify-center py-2 px-1 rounded text-xs transition-colors ${
+            hasWatched
+              ? 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+          title={hasWatched ? "Mark as unwatched" : "Mark as watched"}
+        >
+          <FaEye size={16} className="mb-1" />
+          <span>Seen It</span>
+        </button>
+        
+        {/* More info button */}
+        <button
+          onClick={toggleMoreInfo}
+          className="flex flex-col items-center justify-center py-2 px-1 rounded text-xs bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+          title="Show more information"
+        >
+          <FaInfoCircle size={16} className="mb-1" />
+          <span>More</span>
+        </button>
+      </div>
+      
+      {/* Expandable details panel */}
+      {showMoreInfo && (
+        <div className="p-3 pt-2 border-t border-gray-100 animate-[fadeIn_0.3s_ease-in-out]">
+          {/* Overview */}
+          <p className="text-gray-600 text-sm mb-3" title={content.overview}>
+            {content.overview}
+          </p>
+          
+          {/* Additional metadata could go here */}
+          <div className="flex items-center justify-between">
+            <button
+              onClick={toggleMoreInfo}
+              className="text-sm text-gray-500 hover:text-gray-700"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 
