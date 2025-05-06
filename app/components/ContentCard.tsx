@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { FaStar, FaTv, FaFilm, FaTrophy, FaReddit, FaFire, FaComments, FaHeart, FaRegHeart, FaBookmark, FaRegBookmark, FaThumbsUp, FaThumbsDown, FaInfoCircle, FaImdb, FaPlay, FaChevronDown, FaChevronUp, FaEye } from 'react-icons/fa';
+import { FaStar, FaTv, FaFilm, FaTrophy, FaFire, FaComments, FaHeart, FaRegHeart, FaBookmark, FaRegBookmark, FaThumbsUp, FaThumbsDown, FaInfoCircle, FaImdb, FaPlay, FaChevronDown, FaChevronUp, FaEye } from 'react-icons/fa';
 import { IoFastFoodOutline } from 'react-icons/io5';
 import { BsChatSquareQuote, BsExclamationTriangle } from 'react-icons/bs';
 import { SiRottentomatoes } from 'react-icons/si';
-import { MovieTVShow, EnhancedBuzzType } from '../types';
+import { MovieTVShow } from '../types';
 import TrailerButton from './TrailerButton';
 
 // Helper function to get streaming platform URLs
@@ -61,113 +61,6 @@ const getMatchPercentage = (rank?: number): string => {
   return '80%';
 };
 
-// Enhanced Reddit buzz styling with sentiment analysis
-const getRedditBuzzStyle = (buzzType?: EnhancedBuzzType | 'High' | 'Medium' | 'Low') => {
-  switch (buzzType) {
-    case 'Trending Positive':
-      return {
-        bg: 'bg-green-100',
-        text: 'text-green-700',
-        border: 'border-green-200',
-        icon: <FaFire className="text-green-600" size={14} />,
-        label: 'Very Popular',
-        description: 'Positive',
-        tooltip: 'Highly discussed with positive sentiment on Reddit',
-        meter: 4
-      };
-    case 'Trending Negative':
-      return {
-        bg: 'bg-red-100',
-        text: 'text-red-700',
-        border: 'border-red-200',
-        icon: <FaFire className="text-red-600" size={14} />,
-        description: 'Negative',
-        label: 'Criticized',
-        tooltip: 'Widely discussed with negative sentiment on Reddit',
-        meter: 4
-      };
-    case 'Trending Mixed':
-      return {
-        bg: 'bg-orange-100',
-        text: 'text-orange-700',
-        border: 'border-orange-200',
-        icon: <FaFire className="text-orange-600" size={14} />,
-        label: 'Debated',
-        description: 'Mixed',
-        tooltip: 'Popular with mixed opinions on Reddit',
-        meter: 4
-      };
-    case 'Popular Discussion':
-      return {
-        bg: 'bg-blue-100',
-        text: 'text-blue-700',
-        border: 'border-blue-200',
-        icon: <FaComments className="text-blue-600" size={14} />,
-        label: 'Active',
-        description: 'Discussed',
-        tooltip: 'Active discussions on Reddit communities',
-        meter: 3
-      };
-    case 'Controversial':
-      return {
-        bg: 'bg-purple-100', 
-        text: 'text-purple-700',
-        border: 'border-purple-200',
-        icon: <BsExclamationTriangle className="text-purple-600" size={14} />,
-        label: 'Controversial',
-        description: 'Divided',
-        tooltip: 'Causing divided opinions on Reddit',
-        meter: 3
-      };
-    case 'Niche Interest':
-      return {
-        bg: 'bg-yellow-100',
-        text: 'text-yellow-700',
-        border: 'border-yellow-200',
-        icon: <BsChatSquareQuote className="text-yellow-600" size={14} />,
-        label: 'Niche',
-        description: 'Specific',
-        tooltip: 'Moderate discussion in specific communities',
-        meter: 2
-      };
-    case 'High':
-      return {
-        bg: 'bg-orange-100',
-        text: 'text-orange-700',
-        border: 'border-orange-200',
-        icon: <FaFire className="text-orange-600" size={14} />,
-        label: 'Popular',
-        description: 'High',
-        tooltip: 'High activity level on Reddit',
-        meter: 3
-      };
-    case 'Medium':
-      return {
-        bg: 'bg-amber-50',
-        text: 'text-amber-700',
-        border: 'border-amber-200',
-        icon: <FaComments className="text-amber-600" size={14} />,
-        label: 'Active',
-        description: 'Medium',
-        tooltip: 'Medium activity level on Reddit',
-        meter: 2
-      };
-    case 'Low':
-      return {
-        bg: 'bg-gray-100',
-        text: 'text-gray-700',
-        border: 'border-gray-200',
-        icon: <BsChatSquareQuote className="text-gray-500" size={13} />,
-        label: 'Minor',
-        description: 'Low',
-        tooltip: 'Low activity level on Reddit',
-        meter: 1
-      };
-    default:
-      return null;
-  }
-};
-
 // Hook to manage screen size
 function useMediaQuery(query: string) {
   const [matches, setMatches] = useState(false);
@@ -198,69 +91,6 @@ function useMediaQuery(query: string) {
 
   return matches;
 }
-
-// Separate component for Reddit Buzz indicator to maintain isolated tooltip state
-const RedditBuzzIndicator = ({ buzzStyle, buzzType }: { 
-  buzzStyle: NonNullable<ReturnType<typeof getRedditBuzzStyle>>, 
-  buzzType?: EnhancedBuzzType | 'High' | 'Medium' | 'Low' 
-}) => {
-  const [showTooltip, setShowTooltip] = useState(false);
-  
-  return (
-    <div className="mb-2.5">
-      <div className="inline-flex items-center text-xs rounded-lg border border-gray-200 overflow-hidden shadow-sm relative">
-        {/* Left section with Reddit logo */}
-        <div className="bg-white px-2 py-1.5 flex items-center border-r border-gray-200">
-          <FaReddit className="text-red-500 mr-1" size={14} />
-          <span className="font-medium text-xs">Reddit Buzz</span>
-        </div>
-        
-        {/* Right section with buzz status */}
-        <div className={`${buzzStyle.bg} px-2.5 py-1.5 flex items-center`}>
-          {buzzStyle.icon}
-          
-          {/* Description with interactive tooltip */}
-          <div className="relative inline-block">
-            <span 
-              className="ml-1 font-semibold text-[11px] capitalize cursor-help border-b border-dotted"
-              onMouseEnter={() => setShowTooltip(true)}
-              onMouseLeave={() => setShowTooltip(false)}
-            >
-              {buzzStyle.description}
-            </span>
-            
-            {/* Tooltip that appears on hover */}
-            {showTooltip && (
-              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 -translate-y-1 bg-gray-800 text-white text-xs rounded py-1.5 px-2.5 whitespace-nowrap z-10 min-w-[150px] shadow-lg">
-                <strong>{buzzStyle.label}:</strong> {buzzStyle.tooltip}
-                <div className="absolute h-2 w-2 bg-gray-800 transform rotate-45 left-1/2 -ml-1 -bottom-1"></div>
-              </div>
-            )}
-          </div>
-          
-          {/* Activity meter as horizontal bar */}
-          <span className="ml-2 inline-flex h-1.5 w-12 bg-gray-200 rounded-full overflow-hidden">
-            <span 
-              className={`h-full ${
-                buzzStyle.meter === 4 ? 
-                  (buzzType === 'Trending Positive' ? 'bg-green-500' : 
-                   buzzType === 'Trending Negative' ? 'bg-red-500' : 
-                   'bg-orange-500') : 
-                buzzStyle.meter === 3 ? 
-                  (buzzType === 'Controversial' ? 'bg-purple-500' : 'bg-blue-500') : 
-                buzzStyle.meter === 2 ? 'bg-amber-500' : 
-                'bg-gray-500'
-              } ${buzzStyle.meter === 4 ? 'w-full' : 
-                  buzzStyle.meter === 3 ? 'w-3/4' : 
-                  buzzStyle.meter === 2 ? 'w-1/2' : 
-                  'w-1/4'}`}
-            />
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 export default function ContentCard({ 
   content, 
@@ -402,21 +232,54 @@ export default function ContentCard({
       const watchedContent = localStorage.getItem('watched_content');
       let watched = watchedContent ? JSON.parse(watchedContent) : [];
       
+      // Track if this is from the watchlist for notification
+      let isFromWatchlist = false;
+      
       if (hasWatched) {
         // Remove from watched
         watched = watched.filter((item: any) => item.id !== content.id);
       } else {
-        // Add to watched
+        // Check if this item was in the watchlist
+        const savedWatchlist = localStorage.getItem('watchlist');
+        let watchlistItemDate = null;
+        let timeToWatch = null;
+        
+        if (savedWatchlist) {
+          const watchlist = JSON.parse(savedWatchlist);
+          const watchlistItem = watchlist.find((item: any) => item.id === content.id);
+          
+          if (watchlistItem && watchlistItem.savedAt) {
+            isFromWatchlist = true;
+            watchlistItemDate = new Date(watchlistItem.savedAt);
+            const now = new Date();
+            // Calculate time difference in days
+            const diffTime = Math.abs(now.getTime() - watchlistItemDate.getTime());
+            timeToWatch = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          }
+        }
+        
+        // Add to watched with more detailed information
         watched.push({
           id: content.id,
           title: content.title,
           type: content.type,
-          watchedAt: new Date().toISOString()
+          posterPath: content.posterPath,
+          genres: content.genres || [],
+          rating: content.rating,
+          imdbRating: content.imdbRating,
+          rottenTomatoesScore: content.rottenTomatoesScore,
+          releaseYear: content.releaseYear,
+          watchedAt: new Date().toISOString(),
+          wasInWatchlist: watchlistItemDate !== null,
+          timeToWatchDays: timeToWatch
         });
         
         // Show notification only when marking as watched (not when removing)
         if (isUserLoggedIn) {
           setShowWatchedNotification(true);
+          
+          // Store if it's from watchlist for the notification
+          localStorage.setItem('last_watched_from_watchlist', isFromWatchlist.toString());
           
           // Clear any existing timeout
           if (watchedNotificationTimeout.current) {
@@ -444,7 +307,6 @@ export default function ContentCard({
   };
 
   const matchPercentage = getMatchPercentage(rank);
-  const redditBuzzStyle = getRedditBuzzStyle(content.redditBuzz);
   
   // Convert streamingPlatform to array for consistent handling
   const platforms = Array.isArray(content.streamingPlatform) 
@@ -457,6 +319,42 @@ export default function ContentCard({
   const hasMultiplePlatforms = platforms.length > 1;
   const displayPlatforms = showAllPlatforms ? platforms : platforms.slice(0, 1);
   
+  // Get the last watched timestamp for this content
+  const getLastWatchedDate = () => {
+    if (typeof window !== 'undefined') {
+      const watchedContent = localStorage.getItem('watched_content');
+      if (watchedContent) {
+        const watched = JSON.parse(watchedContent);
+        const watchedItem = watched.find((item: any) => item.id === content.id);
+        if (watchedItem && watchedItem.watchedAt) {
+          const watchedDate = new Date(watchedItem.watchedAt);
+          
+          // If watched today
+          if (new Date().toDateString() === watchedDate.toDateString()) {
+            return 'Watched today';
+          }
+          
+          // If watched yesterday
+          const yesterday = new Date();
+          yesterday.setDate(yesterday.getDate() - 1);
+          if (yesterday.toDateString() === watchedDate.toDateString()) {
+            return 'Watched yesterday';
+          }
+          
+          // If watched this week
+          const daysAgo = Math.floor((new Date().getTime() - watchedDate.getTime()) / (1000 * 60 * 60 * 24));
+          if (daysAgo < 7) {
+            return `Watched ${daysAgo} days ago`;
+          }
+          
+          // If watched longer ago
+          return `Watched on ${watchedDate.toLocaleDateString()}`;
+        }
+      }
+    }
+    return 'Watched';
+  };
+  
   return (
     <div className={`bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 flex flex-col h-full ${className}`}>
       {/* Success notifications */}
@@ -468,7 +366,7 @@ export default function ContentCard({
       
       {showWatchedNotification && (
         <div className="absolute top-2 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white text-sm py-1.5 px-3 rounded-full shadow-md z-10 animate-fadeIn">
-          Marked as watched
+          <span className="font-semibold">{content.title}</span> {localStorage.getItem('last_watched_from_watchlist') === 'true' ? 'checked off your watchlist!' : 'marked as watched'}
         </div>
       )}
       
@@ -512,9 +410,14 @@ export default function ContentCard({
 
         {/* Watched indicator badge */}
         {hasWatched && (
-          <div className="absolute top-2 right-2 bg-blue-500/90 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center">
-            <FaEye className="mr-1" size={10} />
-            <span>Watched</span>
+          <div className="group relative">
+            <div className="absolute top-2 right-2 bg-blue-500/90 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center animate-pulse-slow">
+              <FaEye className="mr-1" size={10} />
+              <span>Watched</span>
+            </div>
+            <div className="absolute top-10 right-0 hidden group-hover:block bg-black text-white text-xs rounded p-2 z-10 whitespace-nowrap">
+              {getLastWatchedDate()}
+            </div>
           </div>
         )}
       </div>
@@ -604,14 +507,6 @@ export default function ContentCard({
               </span>
             )}
           </div>
-        )}
-        
-        {/* Reddit Buzz indicator */}
-        {redditBuzzStyle && (
-          <RedditBuzzIndicator 
-            buzzStyle={redditBuzzStyle} 
-            buzzType={content.redditBuzz as EnhancedBuzzType | 'High' | 'Medium' | 'Low'} 
-          />
         )}
         
         {/* Streaming Platform availability */}
