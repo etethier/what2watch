@@ -38,6 +38,46 @@ const CONTENT_TYPE_MAP: { [key: string]: string } = {
 };
 
 /**
+ * Utility function to check if content is news-related
+ * @param item - TMDB content item or MovieTVShow
+ * @returns boolean indicating if content is news-related
+ */
+const isNewsContent = (item: tmdbService.TMDBContentItem | MovieTVShow): boolean => {
+  // Check for news genre ID (10763)
+  if ('genre_ids' in item && Array.isArray(item.genre_ids)) {
+    if (item.genre_ids.includes(10763)) {
+      return true;
+    }
+  }
+  
+  // Check for news genre name
+  if ('genres' in item && Array.isArray(item.genres)) {
+    if (item.genres.some(genre => 
+      typeof genre === 'string' && 
+      (genre.toLowerCase() === 'news' || genre.toLowerCase() === 'talk')
+    )) {
+      return true;
+    }
+  }
+  
+  // Check title for news-related keywords
+  const newsKeywords = [
+    'news', 'morning', 'tonight', 'daily show', 'report', 
+    'headlines', 'breaking', 'nightly', 'update', 'live report'
+  ];
+  
+  const title = item.title || (item as any).name || '';
+  
+  if (newsKeywords.some(keyword => 
+    title.toLowerCase().includes(keyword.toLowerCase())
+  )) {
+    return true;
+  }
+  
+  return false;
+};
+
+/**
  * Extracts preference details from quiz answers
  * @param quizAnswers - Array of quiz answers from the user
  * @returns Object containing extracted preferences
@@ -161,23 +201,10 @@ export const extractPreferences = (quizAnswers: QuizAnswer[]) => {
  */
 export const getRecommendations = async (quizAnswers: QuizAnswer[]) => {
   try {
-    console.log('Getting recommendations with quiz answers:', quizAnswers);
-    
-    // Extract user preferences
+    // Extract user preferences from quiz answers
     const preferences = extractPreferences(quizAnswers);
-    console.log('Extracted preferences:', preferences);
+    console.log('User preferences:', preferences);
     
-    // Log the preferences to see what's being used
-    console.log('Using preferences for recommendation:', {
-      mood: preferences.mood,
-      contentType: preferences.contentType,
-      genres: preferences.genres,
-      prioritizedGenres: preferences.prioritizedGenres, 
-      duration: preferences.duration,
-      era: preferences.era
-    });
-    
-    // Fetch content items from TMDB based on genres
     let results: tmdbService.TMDBContentItem[] = [];
     
     // Get content for each genre with proper media type
@@ -246,8 +273,13 @@ export const getRecommendations = async (quizAnswers: QuizAnswer[]) => {
     
     console.log(`After deduplication, have ${results.length} results`);
     
-    // Calculate content relevance based on user preferences
-    const relevanceScores: Record<number, number> = {};
+    // Filter out news content
+    results = results.filter(item => !isNewsContent(item));
+    
+    console.log(`After filtering out news content, have ${results.length} results`);
+    
+    // Step 1: Match content based on user preferences
+    const userPreferenceScores: Record<number, number> = {};
     results.forEach(item => {
       let score = 0;
       
@@ -255,7 +287,7 @@ export const getRecommendations = async (quizAnswers: QuizAnswer[]) => {
       item.genre_ids?.forEach(genreId => {
         // Base genre match score
         if (preferences.genres.includes(genreId.toString())) {
-          score += 20; // Base score for genre match
+          score += 10; // Base score for genre match
           
           // Apply priority boosting if we have prioritized genres
           if (preferences.prioritizedGenres && preferences.prioritizedGenres.length > 0) {
@@ -279,8 +311,8 @@ export const getRecommendations = async (quizAnswers: QuizAnswer[]) => {
             
             if (matchingGenreInfo) {
               // Calculate priority boost - higher priority (lower number) gets higher boost
-              // Priority 1: +30, Priority 2: +20, Priority 3: +10
-              const priorityBoost = (4 - matchingGenreInfo.priority) * 10;
+              // Priority 1: +15, Priority 2: +10, Priority 3: +5
+              const priorityBoost = (4 - matchingGenreInfo.priority) * 5;
               score += priorityBoost;
               console.log(`Applied priority boost of ${priorityBoost} for genre with priority ${matchingGenreInfo.priority}`);
             }
@@ -288,77 +320,75 @@ export const getRecommendations = async (quizAnswers: QuizAnswer[]) => {
         }
       });
       
-      // Popularity bonus (with a cap to prevent overwhelming other factors)
-      score += Math.min(item.popularity / 10, 10);
-      
-      // Rating bonus
-      score += item.vote_average * 2;
+      // Add small bonus for content popularity (capped)
+      score += Math.min(item.popularity / 20, 5);
       
       // Match era preference
       if (preferences.era === 'new' && item.release_date) {
         const year = parseInt(item.release_date.substring(0, 4));
         if (year >= new Date().getFullYear() - 3) {
-          score += 15;
+          score += 10;
         }
       } else if (preferences.era === 'classic' && item.release_date) {
         const year = parseInt(item.release_date.substring(0, 4));
         if (year < 2000) {
-          score += 15;
+          score += 10;
         }
       }
       
-      // Match content type preference with higher weight
+      // Match content type preference
       if (preferences.contentType === 'movie' && item.media_type === 'movie') {
-        score += 15;
+        score += 10;
       } else if (preferences.contentType === 'tvShow' && item.media_type === 'tv') {
-        score += 15;
+        score += 10;
       }
       
-      // Add some randomization to avoid always recommending the same items
-      // This helps break ties between similar items
-      score += Math.random() * 5;
-      
-      relevanceScores[item.id] = score;
+      userPreferenceScores[item.id] = score;
     });
     
-    // Convert all the raw results to our format
-    const contentItems = await Promise.all(results.map(item => adaptToWhat2WatchFormat(item)));
+    // Step 2: Convert all the raw results to our format
+    const contentItemPromises = results.map(item => adaptToWhat2WatchFormat(item));
+    const contentItemsWithNull = await Promise.all(contentItemPromises);
+    // Filter out null items (news content that was excluded)
+    const contentItems = contentItemsWithNull.filter(item => item !== null) as MovieTVShow[];
     
-    // Sort recommendations by weighting relevance score, rating, and Reddit buzz
+    console.log(`After filtering out news content during adaptation, have ${contentItems.length} items`);
+    
+    // Step 3: Prioritize by external ratings (Rotten Tomatoes and IMDb with 50/50 weight)
     const recommendations = contentItems.map((content) => {
       // Ensure content is treated as MovieTVShow
       const typedContent = content as MovieTVShow;
-      const relevanceScore = relevanceScores[typedContent.id] || 0;
+      const userMatchScore = userPreferenceScores[typedContent.id] || 0;
       
-      // Add bonus points for high Reddit buzz - INCREASED WEIGHT
-      let buzzBonus = 0;
-      if (typedContent.redditBuzz === 'High') buzzBonus = 20; // Increased from 10
-      else if (typedContent.redditBuzz === 'Medium') buzzBonus = 10; // Increased from 5
-      else if (typedContent.redditBuzz === 'Low') buzzBonus = 2; // Added small bonus for low buzz
+      // Calculate external ratings score (Step 2)
+      let externalRatingScore = 0;
       
-      // Add bonus points for Rotten Tomatoes score
-      let rtBonus = 0;
-      if (typedContent.rottenTomatoesScore) {
-        if (typedContent.rottenTomatoesScore >= 90) rtBonus = 25; // "Certified Fresh" equivalent
-        else if (typedContent.rottenTomatoesScore >= 75) rtBonus = 15; // "Fresh" equivalent
-        else if (typedContent.rottenTomatoesScore >= 60) rtBonus = 5; // "Mixed" equivalent
-      }
-      
-      // Add bonus points for IMDb rating
-      let imdbBonus = 0;
+      // IMDb rating score (50% weight) - scale of 0-50
       if (typedContent.imdbRating) {
-        if (typedContent.imdbRating >= 8.5) imdbBonus = 25; // Exceptional rating
-        else if (typedContent.imdbRating >= 7.5) imdbBonus = 15; // Very good rating
-        else if (typedContent.imdbRating >= 6.5) imdbBonus = 5; // Above average rating
+        externalRatingScore += (typedContent.imdbRating / 10) * 50; // IMDb rating is 0-10, convert to 0-50
       }
       
-      // Final score combines all factors - weighted toward external ratings
-      // Previously: relevanceScore + (typedContent.rating / 2) + buzzBonus
-      const finalScore = (relevanceScore * 0.6) + // Genre/preference match at 60% weight
-                        (typedContent.rating * 0.5) + // Basic rating at half weight
-                        buzzBonus + // Reddit bonus
-                        rtBonus + // Rotten Tomatoes bonus 
-                        imdbBonus; // IMDb bonus
+      // Rotten Tomatoes score (50% weight) - scale of 0-50
+      if (typedContent.rottenTomatoesScore) {
+        externalRatingScore += (typedContent.rottenTomatoesScore / 100) * 50; // RT is 0-100, convert to 0-50
+      }
+      
+      // Step 3: Add Reddit buzz as a bonus
+      let redditBuzzBonus = 0;
+      if (typedContent.redditBuzz === 'High') redditBuzzBonus = 20;
+      else if (typedContent.redditBuzz === 'Medium') redditBuzzBonus = 10;
+      else if (typedContent.redditBuzz === 'Low') redditBuzzBonus = 3;
+      
+      // If we don't have external ratings, use TMDB rating as a fallback with reduced weight
+      if (externalRatingScore === 0) {
+        externalRatingScore = (typedContent.rating / 10) * 30; // TMDB rating is 0-10, convert to 0-30
+      }
+      
+      // Final score combines user preferences, external ratings, and Reddit buzz
+      const finalScore = 
+        (userMatchScore * 0.3) +     // User preferences get 30% weight
+        externalRatingScore +         // External ratings get priority (up to 50 points)
+        redditBuzzBonus;              // Reddit buzz is a bonus
       
       return {
         content: typedContent,
@@ -410,6 +440,12 @@ export const adaptToWhat2WatchFormat = async (item: tmdbService.TMDBContentItem)
       10759: 'Action', 10762: 'Kids', 10763: 'News', 10764: 'Reality',
       10765: 'Sci-Fi', 10766: 'Soap', 10767: 'Talk', 10768: 'War & Politics'
     };
+    
+    // Check if this is a news content - if so, return null to exclude it
+    if (isNewsContent(item)) {
+      console.log(`Skipping news content: ${title}`);
+      return null;
+    }
     
     // Map genre IDs to names
     const genres = item.genre_ids?.map(id => genreMap[id] || `Genre ${id}`).filter(Boolean) || [];
@@ -657,15 +693,20 @@ export const getEnhancedRecommendations = async (quizAnswers: QuizAnswer[]) => {
       return true;
     });
     
-    // Step 6: Calculate content relevance based on preferences
-    const relevanceScores: Record<number, number> = {};
+    // Filter out news content
+    results = results.filter(item => !isNewsContent(item));
+    
+    console.log(`After filtering out news content, have ${results.length} results`);
+    
+    // Step 6: Calculate initial user preference match scores
+    const userPreferenceScores: Record<number, number> = {};
     results.forEach(item => {
       let score = 0;
       
       // Match genres (explicit match)
       item.genre_ids?.forEach(genreId => {
         if (preferences.genres.includes(genreId.toString())) {
-          score += 20;
+          score += 10;
           
           // Apply priority boosting if we have prioritized genres
           if (preferences.prioritizedGenres && preferences.prioritizedGenres.length > 0) {
@@ -689,8 +730,8 @@ export const getEnhancedRecommendations = async (quizAnswers: QuizAnswer[]) => {
             
             if (matchingGenreInfo) {
               // Calculate priority boost - higher priority (lower number) gets higher boost
-              // Priority 1: +30, Priority 2: +20, Priority 3: +10
-              const priorityBoost = (4 - matchingGenreInfo.priority) * 10;
+              // Priority 1: +15, Priority 2: +10, Priority 3: +5
+              const priorityBoost = (4 - matchingGenreInfo.priority) * 5;
               score += priorityBoost;
               console.log(`Enhanced algorithm: Applied priority boost of ${priorityBoost} for genre with priority ${matchingGenreInfo.priority}`);
             }
@@ -698,27 +739,19 @@ export const getEnhancedRecommendations = async (quizAnswers: QuizAnswer[]) => {
         }
       });
       
-      // Popularity bonus
-      score += Math.min(item.popularity / 10, 10);
-      
-      // Rating bonus
-      score += item.vote_average * 2;
-      
-      // Top-rated bonus
-      if (item.vote_average >= 8 && item.vote_count > 1000) {
-        score += 15;
-      }
+      // Small bonus for popularity
+      score += Math.min(item.popularity / 20, 5);
       
       // Match release year preference
       if (preferences.era === 'new' && item.release_date) {
         const year = parseInt(item.release_date.substring(0, 4));
         if (year >= new Date().getFullYear() - 3) {
-          score += 15;
+          score += 10;
         }
       } else if (preferences.era === 'classic' && item.release_date) {
         const year = parseInt(item.release_date.substring(0, 4));
         if (year < 2000) {
-          score += 15;
+          score += 10;
         }
       }
       
@@ -729,47 +762,52 @@ export const getEnhancedRecommendations = async (quizAnswers: QuizAnswer[]) => {
         score += 10;
       }
       
-      relevanceScores[item.id] = score;
+      userPreferenceScores[item.id] = score;
     });
     
     // Step 7: Convert all the raw results to our format
-    const contentItems = await Promise.all(results.map(item => adaptToWhat2WatchFormat(item)));
+    const contentItemPromises = results.map(item => adaptToWhat2WatchFormat(item));
+    const contentItemsWithNull = await Promise.all(contentItemPromises);
+    // Filter out null items (news content that was excluded)
+    const contentItems = contentItemsWithNull.filter(item => item !== null) as MovieTVShow[];
     
-    // Step 8: Apply final scoring and ranking
+    console.log(`After filtering out news content during adaptation, have ${contentItems.length} items`);
+    
+    // Step 8: Apply new scoring formula prioritizing external ratings
     const recommendations = contentItems.map((content) => {
       // Ensure content is treated as MovieTVShow
       const typedContent = content as MovieTVShow;
-      const relevanceScore = relevanceScores[typedContent.id] || 0;
+      const userMatchScore = userPreferenceScores[typedContent.id] || 0;
       
-      // Add bonus points for high Reddit buzz - INCREASED WEIGHT
-      let buzzBonus = 0;
-      if (typedContent.redditBuzz === 'High') buzzBonus = 20; // Increased from 10
-      else if (typedContent.redditBuzz === 'Medium') buzzBonus = 10; // Increased from 5
-      else if (typedContent.redditBuzz === 'Low') buzzBonus = 2; // Added small bonus for low buzz
+      // Calculate external ratings score (Step 2)
+      let externalRatingScore = 0;
       
-      // Add bonus points for Rotten Tomatoes score
-      let rtBonus = 0;
-      if (typedContent.rottenTomatoesScore) {
-        if (typedContent.rottenTomatoesScore >= 90) rtBonus = 25; // "Certified Fresh" equivalent
-        else if (typedContent.rottenTomatoesScore >= 75) rtBonus = 15; // "Fresh" equivalent
-        else if (typedContent.rottenTomatoesScore >= 60) rtBonus = 5; // "Mixed" equivalent
-      }
-      
-      // Add bonus points for IMDb rating
-      let imdbBonus = 0;
+      // IMDb rating score (50% weight) - scale of 0-50
       if (typedContent.imdbRating) {
-        if (typedContent.imdbRating >= 8.5) imdbBonus = 25; // Exceptional rating
-        else if (typedContent.imdbRating >= 7.5) imdbBonus = 15; // Very good rating
-        else if (typedContent.imdbRating >= 6.5) imdbBonus = 5; // Above average rating
+        externalRatingScore += (typedContent.imdbRating / 10) * 50; // IMDb rating is 0-10, convert to 0-50
       }
       
-      // Final score combines all factors - weighted toward external ratings
-      // Previously: relevanceScore + (typedContent.rating / 2) + buzzBonus
-      const finalScore = (relevanceScore * 0.6) + // Genre/preference match at 60% weight
-                        (typedContent.rating * 0.5) + // Basic rating at half weight
-                        buzzBonus + // Reddit bonus
-                        rtBonus + // Rotten Tomatoes bonus 
-                        imdbBonus; // IMDb bonus
+      // Rotten Tomatoes score (50% weight) - scale of 0-50
+      if (typedContent.rottenTomatoesScore) {
+        externalRatingScore += (typedContent.rottenTomatoesScore / 100) * 50; // RT is 0-100, convert to 0-50
+      }
+      
+      // Step 3: Add Reddit buzz as a bonus
+      let redditBuzzBonus = 0;
+      if (typedContent.redditBuzz === 'High') redditBuzzBonus = 20;
+      else if (typedContent.redditBuzz === 'Medium') redditBuzzBonus = 10;
+      else if (typedContent.redditBuzz === 'Low') redditBuzzBonus = 3;
+      
+      // If we don't have external ratings, use TMDB rating as a fallback with reduced weight
+      if (externalRatingScore === 0) {
+        externalRatingScore = (typedContent.rating / 10) * 30; // TMDB rating is 0-10, convert to 0-30
+      }
+      
+      // Final score combines user preferences, external ratings, and Reddit buzz
+      const finalScore = 
+        (userMatchScore * 0.3) +     // User preferences get 30% weight
+        externalRatingScore +         // External ratings get priority (up to 50 points)
+        redditBuzzBonus;              // Reddit buzz is a bonus
       
       return {
         content: typedContent,
@@ -778,14 +816,15 @@ export const getEnhancedRecommendations = async (quizAnswers: QuizAnswer[]) => {
       };
     });
     
-    // Step 9: Sort by final score and assign ranks
+    // Sort by final score and assign ranks
     recommendations.sort((a, b) => b.relevance_score - a.relevance_score);
     recommendations.forEach((rec, index) => {
       rec.rank = index + 1;
     });
     
-    // Return top 20 recommendations
-    return recommendations.slice(0, 20);
+    console.log(`Enhanced algorithm returning ${Math.min(recommendations.length, 10)} recommendations`);
+    
+    return recommendations.slice(0, 10);
   } catch (error) {
     console.error('Error getting enhanced recommendations:', error);
     return [];
@@ -793,9 +832,9 @@ export const getEnhancedRecommendations = async (quizAnswers: QuizAnswer[]) => {
 };
 
 /**
- * Store content items in Supabase database for faster retrieval
- * @param contentItems - Array of MovieTVShow items to store
- * @returns Promise with success status
+ * Store content items in the Supabase database
+ * @param contentItems - Array of content items to store
+ * @returns Promise with boolean indicating success
  */
 export const storeContentInDatabase = async (contentItems: MovieTVShow[]): Promise<boolean> => {
   try {
@@ -807,8 +846,13 @@ export const storeContentInDatabase = async (contentItems: MovieTVShow[]): Promi
       return false;
     }
     
-    // Prepare the data for insertion
-    const formattedData = contentItems.map(item => ({
+    // Filter out any news-related content
+    const filteredItems = contentItems.filter(item => !isNewsContent(item));
+    
+    console.log(`Filtered out ${contentItems.length - filteredItems.length} news items before storing in database`);
+    
+    // Convert the items to database format
+    const dbItems = filteredItems.map(item => ({
       id: item.id,
       title: item.title,
       overview: item.overview,
@@ -820,15 +864,13 @@ export const storeContentInDatabase = async (contentItems: MovieTVShow[]): Promi
       streaming_platform: item.streamingPlatform,
       imdb_rating: item.imdbRating,
       rotten_tomatoes_score: item.rottenTomatoesScore,
-      reddit_buzz: item.redditBuzz,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      reddit_buzz: item.redditBuzz
     }));
     
     // Insert the data, using upsert to avoid duplicates
     const { error } = await supabase
       .from('content_library')
-      .upsert(formattedData, { onConflict: 'id' });
+      .upsert(dbItems, { onConflict: 'id' });
     
     if (error) {
       console.error('Error storing content in database:', error);

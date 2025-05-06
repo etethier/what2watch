@@ -76,9 +76,10 @@ export default function Recommendations({ recommendations, onRetakeQuiz, session
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [activeFilter, setActiveFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [allRecommendations, setAllRecommendations] = useState<MovieTVShow[]>(recommendations);
+  const [allRecommendations, setAllRecommendations] = useState<MovieTVShow[]>(recommendations || []);
   const [canLoadMore, setCanLoadMore] = useState<boolean>(true);
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
+  const [hiddenContentIds, setHiddenContentIds] = useState<number[]>([]);
 
   // Fetch user on component mount
   useEffect(() => {
@@ -98,39 +99,65 @@ export default function Recommendations({ recommendations, onRetakeQuiz, session
   }, []);
 
   const showMore = async () => {
+    if (isLoading) return;
+    
     // Increase visible count
     setVisibleCount(prev => prev + 6);
+    setIsLoading(true);
     
-    // In a real app, this would make an API call to load more recommendations
-    // If we had sessionId, we could use it to fetch more recommendations from Supabase
-    if (sessionId) {
-      // This would be implemented in a full solution
-      try {
-        setIsLoading(true);
-        // Mock fetching additional recommendations - in a real app, you would call an API
+    try {
+      // In a real app, this would make an API call to load more recommendations
+      // If we had sessionId, we could use it to fetch more recommendations from Supabase
+      if (sessionId) {
+        // This would be implemented in a full solution
         // const moreRecommendations = await supabaseService.content.getMoreRecommendations(sessionId, visibleCount);
         
         // For demo purposes, duplicate the recommendations with new IDs to simulate new content
-        const newRecommendations = recommendations.map((item, index) => ({
-          ...item,
-          id: allRecommendations.length + index + 1 // Generate new unique IDs
-        }));
+        const newRecommendations = (recommendations || [])
+          .map((item, index) => {
+            if (!item) return null;
+            return {
+              ...item,
+              id: allRecommendations.length + index + 1, // Generate new unique IDs
+              title: `${item.title} (More Like This)`, // Modify titles to show they're duplicates
+            };
+          })
+          .filter((item): item is MovieTVShow => item !== null);  // Type guard to ensure we have non-null items
         
         // Add new recommendations to the existing list
         setAllRecommendations(prev => [...prev, ...newRecommendations]);
+      } else {
+        // When no sessionId is provided, we'll just duplicate existing recommendations
+        // This is just for demo purposes - in a real app, you'd fetch new ones
+        const availableRecommendations = allRecommendations.filter(
+          item => item && !hiddenContentIds.includes(item.id)
+        );
         
-      } catch (error) {
-        console.error('Error fetching more recommendations:', error);
-      } finally {
-        setIsLoading(false);
+        // Clone the first few recommendations with new IDs
+        const clonedRecommendations = availableRecommendations
+          .slice(0, Math.min(6, availableRecommendations.length))
+          .map((item, index) => {
+            if (!item) return null;
+            return {
+              ...item,
+              id: allRecommendations.length + index + 1, // Generate new unique IDs
+              title: `${item.title} (Similar)`, // Modify titles to show they're duplicates
+            }
+          })
+          .filter((item): item is MovieTVShow => item !== null); // Type guard to ensure we have non-null items
+        
+        // Add these to our recommendations list
+        setAllRecommendations(prev => [...prev, ...clonedRecommendations]);
       }
-    }
-    
-    // Check if we can still load more content
-    if (visibleCount + 6 >= filteredRecommendations.length) {
-      setCanLoadMore(false);
-    } else {
-      setCanLoadMore(true);
+      
+      // Check if we still have more content to load
+      // In a real app, this would be based on a total count from the API
+      const totalPossible = allRecommendations.length + 6;
+      setCanLoadMore(visibleCount + 6 < totalPossible);
+    } catch (error) {
+      console.error('Error fetching more recommendations:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -148,36 +175,67 @@ export default function Recommendations({ recommendations, onRetakeQuiz, session
     setShowAuthModal(true);
   };
 
-  const filteredRecommendations = allRecommendations.filter(item => {
-    // Apply search filter
-    if (searchQuery && !item.title.toLowerCase().includes(searchQuery.toLowerCase())) {
-      return false;
-    }
+  // Function to handle when user marks content as watched
+  const handleContentWatched = (contentId: number) => {
+    // Add the content ID to the list of hidden content
+    setHiddenContentIds(prevIds => [...prevIds, contentId]);
     
-    // Apply type filter
-    if (activeFilter === 'movies' && item.type !== 'movie') {
-      return false;
-    }
-    if (activeFilter === 'tv' && item.type !== 'tv') {
-      return false;
-    }
+    // Increase the visible count to show the next recommendation
+    setVisibleCount(prevCount => {
+      // If we're already showing enough recommendations, no need to increase
+      if (prevCount > allRecommendations.length - hiddenContentIds.length) {
+        return prevCount;
+      }
+      return prevCount + 1;
+    });
     
-    return true;
-  });
+    // If we're running low on visible recommendations, load more
+    const remainingVisible = allRecommendations.length - hiddenContentIds.length - visibleCount;
+    if (remainingVisible < 3 && !isLoading && canLoadMore) {
+      showMore();
+    }
+  };
+
+  const filteredRecommendations = allRecommendations
+    .filter(item => {
+      // Check if item is null or undefined first
+      if (!item) {
+        return false;
+      }
+      
+      // Filter out hidden content
+      if (hiddenContentIds.includes(item.id)) {
+        return false;
+      }
+      
+      // Apply search filter
+      if (searchQuery && !item.title.toLowerCase().includes(searchQuery.toLowerCase())) {
+        return false;
+      }
+      
+      // Apply type filter
+      if (activeFilter === 'movies' && item.type !== 'movie') {
+        return false;
+      }
+      if (activeFilter === 'tv' && item.type !== 'tv') {
+        return false;
+      }
+      
+      return true;
+    });
 
   // Split recommendations into top 3 and others
-  const topRecommendations = filteredRecommendations.slice(0, 3);
-  const otherRecommendations = filteredRecommendations.slice(3, visibleCount);
+  const topRecommendations = filteredRecommendations ? filteredRecommendations.slice(0, 3) : [];
+  const otherRecommendations = filteredRecommendations ? filteredRecommendations.slice(3, visibleCount) : [];
 
   // Get rank display for top recommendations
   const getRankDisplay = (rank: number) => {
+    // Colors for the different ranks - keeping a gradient from gold to bronze
     const colors = ['text-yellow-500', 'text-gray-400', 'text-amber-600'];
-    const emojis = ['🥇', '🥈', '🥉'];
     
     return (
       <div className="flex items-center mb-2">
-        <span className={`text-2xl font-bold ${colors[rank-1]} mr-2`}>{rank}</span>
-        <span className="text-xl">{emojis[rank-1]}</span>
+        <span className={`text-3xl font-bold ${colors[rank-1]}`}>{rank}</span>
       </div>
     );
   };
@@ -293,8 +351,8 @@ export default function Recommendations({ recommendations, onRetakeQuiz, session
             
             {/* Top 3 recommendations with large cards and prominent ranking */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {topRecommendations.map((item, index) => (
-                <div key={item.id} className="flex flex-col top-recommendation">
+              {topRecommendations.map((item, index) => item && (
+                <div key={item.id} className="flex flex-col top-recommendation animate-fadeIn" style={{ height: 'fit-content' }}>
                   {/* Rank display */}
                   <div className="rank-badge">
                     {getRankDisplay(index + 1)}
@@ -308,6 +366,7 @@ export default function Recommendations({ recommendations, onRetakeQuiz, session
                       className="border-2 border-gradient-pink-purple shadow-lg h-full"
                       isUserLoggedIn={!!currentUser}
                       onAuthRequired={handleAuthRequired}
+                      onContentWatched={handleContentWatched}
                     />
                   </div>
                 </div>
@@ -332,37 +391,50 @@ export default function Recommendations({ recommendations, onRetakeQuiz, session
         
         {/* OTHER RECOMMENDATIONS SECTION */}
         {otherRecommendations.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-            {otherRecommendations.map((item) => (
-              <ContentCard 
-                key={item.id} 
-                content={item}
-                className="hover:translate-y-[-5px] transition-transform"
-                isUserLoggedIn={!!currentUser}
-                onAuthRequired={handleAuthRequired}
-              />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 grid-flow-row-dense">
+            {otherRecommendations.map((item) => item && (
+              <div key={item.id} className="animate-fadeIn" style={{ height: 'fit-content' }}>
+                <ContentCard 
+                  content={item}
+                  className="hover:translate-y-[-5px] transition-transform"
+                  isUserLoggedIn={!!currentUser}
+                  onAuthRequired={handleAuthRequired}
+                  onContentWatched={handleContentWatched}
+                />
+              </div>
             ))}
           </div>
         )}
         
         {/* Show More button - always visible */}
-        {filteredRecommendations.length > 3 && (
+        {filteredRecommendations.length > 0 && canLoadMore && (
           <div className="text-center mt-8">
             <button
               onClick={showMore}
               className="px-6 py-3 bg-gradient-to-r from-pink-500 to-orange-400 text-white rounded-full hover:shadow-lg transition-all duration-300 flex items-center justify-center mx-auto"
-              disabled={isLoading || filteredRecommendations.length <= visibleCount}
+              disabled={isLoading}
             >
               {isLoading ? (
                 <>
                   <span className="animate-spin h-4 w-4 border-t-2 border-b-2 border-white rounded-full mr-2"></span>
-                  Loading...
+                  Loading more recommendations...
                 </>
-              ) : filteredRecommendations.length <= visibleCount ? (
-                'All recommendations loaded'
               ) : (
                 'Show More Recommendations'
               )}
+            </button>
+          </div>
+        )}
+        
+        {/* Show indication when all content has been loaded */}
+        {filteredRecommendations.length > 0 && !canLoadMore && !isLoading && (
+          <div className="text-center mt-8 text-gray-500">
+            <p>You've reached the end of our recommendations.</p>
+            <button
+              onClick={onRetakeQuiz}
+              className="mt-2 text-pink-500 hover:text-pink-600 underline"
+            >
+              Take the quiz again for more recommendations
             </button>
           </div>
         )}

@@ -67,7 +67,8 @@ export default function Home() {
               const adaptedContent = await Promise.all(combinedResults.map(item => 
                 adaptToWhat2WatchFormat({...item, media_type: 'movie' as const})
               ));
-              content = adaptedContent as MovieTVShow[];
+              // Filter out null values
+              content = adaptedContent.filter(Boolean) as MovieTVShow[];
             }
           } catch (error) {
             console.error('Error fetching multiple pages:', error);
@@ -77,7 +78,8 @@ export default function Home() {
               const adaptedContent = await Promise.all(popularMovies.results.map(item => 
                 adaptToWhat2WatchFormat({...item, media_type: 'movie' as const})
               ));
-              content = adaptedContent as MovieTVShow[];
+              // Filter out null values
+              content = adaptedContent.filter(Boolean) as MovieTVShow[];
             }
           }
         }
@@ -89,6 +91,7 @@ export default function Home() {
           // Randomize the order slightly for variety
           content.sort(() => Math.random() - 0.5);
           
+          // Set recommendations
           setRecommendations(content);
           setTmdbStatus('TMDB OK');
           setUsingSampleData(false);
@@ -136,7 +139,7 @@ export default function Home() {
       type: "movie",
       rating: 8.1,
       genres: ["Sci-Fi", "Drama", "Comedy", "Action"],
-      streamingPlatform: "Netflix",
+      streamingPlatform: ["Netflix", "Prime Video", "Apple TV+"],
       imdbRating: 8.1,
       rottenTomatoesScore: 95,
       redditBuzz: "High"
@@ -149,7 +152,7 @@ export default function Home() {
       type: "movie",
       rating: 7.9,
       genres: ["Sci-Fi", "Adventure", "Drama"],
-      streamingPlatform: "HBO Max",
+      streamingPlatform: ["HBO Max", "Prime Video"],
       imdbRating: 8.0,
       rottenTomatoesScore: 83,
       redditBuzz: "High"
@@ -188,7 +191,7 @@ export default function Home() {
       type: "movie",
       rating: 9.3,
       genres: ["Drama", "Crime"],
-      streamingPlatform: "Netflix, Prime Video",
+      streamingPlatform: ["Netflix", "Prime Video", "HBO Max"],
       imdbRating: 9.3,
       rottenTomatoesScore: 91,
       redditBuzz: "High"
@@ -263,11 +266,21 @@ export default function Home() {
   const handleRetakeQuiz = () => {
     setShowRecommendations(false);
     setShowQuiz(true);
+    
+    // Clear the quiz_completed flag when retaking the quiz
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('quiz_completed');
+    }
   };
 
   const handleQuizComplete = () => {
     setShowQuiz(false);
     setShowRecommendations(true);
+    
+    // Set the quiz_completed flag in localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('quiz_completed', 'true');
+    }
   };
 
   const startQuiz = () => {
@@ -289,55 +302,73 @@ export default function Home() {
     return (
       <div className="bg-white">
         {/* Hero Section */}
-        <section className="min-h-screen flex flex-col items-center justify-center text-center px-4 py-16">
+        <section className="min-h-screen flex flex-col items-center justify-center text-center px-4 py-24">
           <div className="max-w-4xl mx-auto">
-            <h1 className="text-5xl md:text-7xl font-bold mb-5 tracking-tight text-black">
+            <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold mb-8 tracking-tight text-black">
               Tired of endlessly scrolling?
             </h1>
             
-            <h2 className="text-4xl md:text-6xl font-bold mb-8">
-              <span style={{
-                background: 'linear-gradient(90deg, #ec4899 0%, #f87171 50%, #f97316 100%)',
-                WebkitBackgroundClip: 'text',
-                backgroundClip: 'text',
-                color: 'transparent',
-                display: 'inline-block'
-              }}>
-                Find your next watch <span className="mx-2">—</span> instantly<span className="text-orange-400">.</span>
+            <h2 className="text-3xl sm:text-4xl md:text-6xl font-bold mb-10">
+              <span className="bg-gradient-to-r from-pink-500 via-red-500 to-orange-500 bg-clip-text text-transparent">
+                Find your next watch — instantly.
               </span>
             </h2>
             
-            <p className="text-xl text-gray-600 mb-16 max-w-3xl mx-auto">
-              Personalized recommendations powered by Reddit buzz, critic <br className="hidden md:block" />
-              scores, and your mood.
+            <p className="text-lg md:text-xl text-gray-600 mb-14 max-w-3xl mx-auto">
+              Personalized recommendations powered by AI.
             </p>
             
-            <div className="flex justify-center">
+            <div className="flex justify-center mb-12">
               <button 
                 onClick={startQuiz}
-                style={{
-                  background: 'linear-gradient(to right, #ec4899, #f87171, #f97316)',
-                  color: 'white',
-                  fontSize: '1.25rem',
-                  fontWeight: '500',
-                  padding: '0.75rem 2rem',
-                  borderRadius: '9999px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.5rem',
-                  transition: 'all 300ms',
-                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
-                }}
-                onMouseOver={(e) => e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'}
-                onMouseOut={(e) => e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'}
+                className="bg-gradient-to-r from-pink-500 to-orange-400 text-white font-medium text-lg px-8 py-4 rounded-full flex items-center justify-center gap-2 hover:shadow-lg transition-all duration-300"
               >
-                Get My Show <FaArrowRight className="ml-1" />
+                Get My Show <FaArrowRight className="ml-2" />
               </button>
             </div>
             
+            {/* How It Works Section */}
+            <div className="max-w-6xl mx-auto mt-12 mb-8">
+              <h2 className="text-2xl font-bold text-center mb-8">How It Works</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Step 1 */}
+                <div className="bg-white rounded-lg p-4 shadow-sm text-center flex flex-col items-center border border-gray-100">
+                  <div className="w-12 h-12 rounded-full bg-pink-100 flex items-center justify-center text-pink-500 font-bold text-lg mb-3">
+                    1
+                  </div>
+                  <h3 className="text-lg font-bold mb-2">Take Quiz</h3>
+                  <p className="text-gray-600 text-sm">
+                    Answer a few quick questions about your mood and preferences.
+                  </p>
+                </div>
+                
+                {/* Step 2 */}
+                <div className="bg-white rounded-lg p-4 shadow-sm text-center flex flex-col items-center border border-gray-100">
+                  <div className="w-12 h-12 rounded-full bg-pink-100 flex items-center justify-center text-pink-500 font-bold text-lg mb-3">
+                    2
+                  </div>
+                  <h3 className="text-lg font-bold mb-2">Get Recommendations</h3>
+                  <p className="text-gray-600 text-sm">
+                    Receive personalized movie and show recommendations.
+                  </p>
+                </div>
+                
+                {/* Step 3 */}
+                <div className="bg-white rounded-lg p-4 shadow-sm text-center flex flex-col items-center border border-gray-100">
+                  <div className="w-12 h-12 rounded-full bg-pink-100 flex items-center justify-center text-pink-500 font-bold text-lg mb-3">
+                    3
+                  </div>
+                  <h3 className="text-lg font-bold mb-2">Start Watching</h3>
+                  <p className="text-gray-600 text-sm">
+                    Enjoy your perfect match and save favorites for later.
+                  </p>
+                </div>
+              </div>
+            </div>
+            
             {/* Connection status indicators */}
-            <div className="mt-4 text-sm text-gray-500 space-y-1">
+            <div className="mt-6 text-sm text-gray-500 space-y-1">
               {connectionStatus && (
                 <div>
                   {connectionStatus === 'Supabase OK' ? 
@@ -365,56 +396,14 @@ export default function Home() {
           </div>
         </section>
 
-        {/* How It Works Section */}
-        <section className="py-20 px-4 bg-gray-50">
-          <div className="max-w-6xl mx-auto">
-            <h2 className="text-4xl font-bold text-center mb-16">How It Works</h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {/* Step 1 */}
-              <div className="bg-white rounded-lg p-8 text-center flex flex-col items-center">
-                <div className="w-16 h-16 rounded-full bg-pink-100 flex items-center justify-center text-pink-500 font-bold text-2xl mb-6">
-                  1
-                </div>
-                <h3 className="text-xl font-bold mb-3">Take Quiz</h3>
-                <p className="text-gray-600">
-                  Answer a few quick questions about your mood and preferences.
-                </p>
-              </div>
-              
-              {/* Step 2 */}
-              <div className="bg-white rounded-lg p-8 text-center flex flex-col items-center">
-                <div className="w-16 h-16 rounded-full bg-pink-100 flex items-center justify-center text-pink-500 font-bold text-2xl mb-6">
-                  2
-                </div>
-                <h3 className="text-xl font-bold mb-3">Get Recommendations</h3>
-                <p className="text-gray-600">
-                  Receive personalized movie and show recommendations.
-                </p>
-              </div>
-              
-              {/* Step 3 */}
-              <div className="bg-white rounded-lg p-8 text-center flex flex-col items-center">
-                <div className="w-16 h-16 rounded-full bg-pink-100 flex items-center justify-center text-pink-500 font-bold text-2xl mb-6">
-                  3
-                </div>
-                <h3 className="text-xl font-bold mb-3">Start Watching</h3>
-                <p className="text-gray-600">
-                  Enjoy your perfect match and save favorites for later.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-
         {/* Platforms Section */}
-        <section className="py-20 px-4">
+        <section className="py-16 px-4">
           <div className="max-w-4xl mx-auto text-center">
-            <h2 className="text-3xl font-bold mb-16">Available on all your favorite platforms</h2>
+            <h2 className="text-2xl font-bold mb-10">Available on all your favorite platforms</h2>
             
-            <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
               {streamingPlatforms.map((platform, index) => (
-                <div key={index} className="bg-gray-50 py-4 px-2 rounded-md">
+                <div key={index} className="bg-gray-50 py-3 px-2 rounded-md shadow-sm">
                   <p className="font-medium text-gray-700">{platform.name}</p>
                 </div>
               ))}
@@ -423,91 +412,28 @@ export default function Home() {
         </section>
 
         {/* CTA Section */}
-        <section style={{
-          background: 'linear-gradient(to right, #ec4899, #f97316)',
-          padding: '4rem 1rem',
-          color: 'white'
-        }}>
+        <section className="bg-gradient-to-r from-pink-500 to-orange-400 text-white py-12 px-4">
           <div className="max-w-3xl mx-auto text-center">
-            <h2 className="text-3xl font-bold mb-6">Ready to find your next favorite show?</h2>
+            <h2 className="text-2xl font-bold mb-6">Ready to find your next favorite show?</h2>
             
             <button 
               onClick={startQuiz}
-              style={{
-                background: 'white',
-                color: '#ec4899',
-                fontWeight: '500',
-                padding: '0.75rem 1.5rem',
-                borderRadius: '9999px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.5rem',
-                margin: '0 auto'
-              }}
+              className="bg-white text-pink-500 font-medium px-6 py-3 rounded-full flex items-center justify-center mx-auto hover:bg-gray-100 transition-colors"
             >
-              Get My Show <FaArrowRight />
+              Get My Show <FaArrowRight className="ml-2" />
             </button>
           </div>
         </section>
 
-        {/* Menu Items */}
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-4 md:gap-6 mt-8">
-          <a 
-            onClick={startQuiz}
-            className="bg-white rounded-lg shadow-sm p-6 text-center cursor-pointer transition-all hover:shadow-md border border-gray-200"
-          >
-            <h3 className="font-bold text-xl mb-2 text-pink-600">Take the Quiz</h3>
-            <p className="text-gray-600 text-sm mb-4">Find your perfect watch recommendation by answering a few quick questions</p>
-            <button className="inline-flex items-center bg-pink-500 text-white rounded-full px-4 py-2 text-sm">
-              Start Now
-              <FaArrowRight className="ml-2" />
-            </button>
-          </a>
-          
-          <a
-            href="/recommendation-analytics"
-            className="bg-white rounded-lg shadow-sm p-6 text-center cursor-pointer transition-all hover:shadow-md border border-gray-200"
-          >
-            <h3 className="font-bold text-xl mb-2 text-pink-600">View Analytics</h3>
-            <p className="text-gray-600 text-sm mb-4">See how well our recommendations perform based on user feedback</p>
-            <button className="inline-flex items-center bg-pink-500 text-white rounded-full px-4 py-2 text-sm">
-              View Analytics
-              <FaArrowRight className="ml-2" />
-            </button>
-          </a>
-          
-          <a
-            href="/user-testing"
-            className="bg-white rounded-lg shadow-sm p-6 text-center cursor-pointer transition-all hover:shadow-md border border-gray-200"
-          >
-            <h3 className="font-bold text-xl mb-2 text-pink-600">Help Us Improve</h3>
-            <p className="text-gray-600 text-sm mb-4">Take a 3-minute test to help improve our recommendation algorithms</p>
-            <button className="inline-flex items-center bg-pink-500 text-white rounded-full px-4 py-2 text-sm">
-              Start Testing
-              <FaArrowRight className="ml-2" />
-            </button>
-          </a>
-          
-          <a
-            href="/content-library"
-            className="bg-white rounded-lg shadow-sm p-6 text-center cursor-pointer transition-all hover:shadow-md border border-gray-200"
-          >
-            <h3 className="font-bold text-xl mb-2 text-pink-600">Content Library</h3>
-            <p className="text-gray-600 text-sm mb-4">Explore our expanded collection of movies and TV shows from multiple sources</p>
-            <button className="inline-flex items-center bg-pink-500 text-white rounded-full px-4 py-2 text-sm">
-              Browse Library
-              <FaArrowRight className="ml-2" />
-            </button>
-          </a>
-        </div>
-
+        {/* Sample Data Warning - if needed */}
         {usingSampleData && (
-          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 max-w-3xl mx-auto mt-4">
-            <p className="text-yellow-800">
-              <strong>Note:</strong> We're currently showing sample recommendations due to an issue connecting to our movie database. 
-              For personalized recommendations, please try the quiz.
-            </p>
+          <div className="container mx-auto px-4 py-8">
+            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 max-w-3xl mx-auto">
+              <p className="text-yellow-800">
+                <strong>Note:</strong> We're currently showing sample recommendations due to an issue connecting to our movie database. 
+                For personalized recommendations, please try the quiz.
+              </p>
+            </div>
           </div>
         )}
       </div>
@@ -520,24 +446,66 @@ export default function Home() {
   ) : (
     showRecommendations ? (
       <Recommendations 
-        recommendations={recommendations} 
+        recommendations={recommendations.filter(Boolean) as MovieTVShow[]} 
         onRetakeQuiz={handleRetakeQuiz} 
       />
     ) : (
-      // Landing page UI code remains unchanged
+      // Just return the original landing page component instead of duplicating the code
       <div className="bg-white">
-        {/* ... existing landing page code ... */}
-        
-        {usingSampleData && (
-          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 max-w-3xl mx-auto mt-4">
-            <p className="text-yellow-800">
-              <strong>Note:</strong> We're currently showing sample recommendations due to an issue connecting to our movie database. 
-              For personalized recommendations, please try the quiz.
+        {/* Hero Section */}
+        <section className="min-h-screen flex flex-col items-center justify-center text-center px-4 py-24">
+          <div className="max-w-4xl mx-auto">
+            <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold mb-8 tracking-tight text-black">
+              Tired of endlessly scrolling?
+            </h1>
+            
+            <h2 className="text-3xl sm:text-4xl md:text-6xl font-bold mb-10">
+              <span className="bg-gradient-to-r from-pink-500 via-red-500 to-orange-500 bg-clip-text text-transparent">
+                Find your next watch — instantly.
+              </span>
+            </h2>
+            
+            <p className="text-lg md:text-xl text-gray-600 mb-14 max-w-3xl mx-auto">
+              Personalized recommendations powered by AI.
             </p>
+            
+            <div className="flex justify-center mb-12">
+              <button 
+                onClick={startQuiz}
+                className="bg-gradient-to-r from-pink-500 to-orange-400 text-white font-medium text-lg px-8 py-4 rounded-full flex items-center justify-center gap-2 hover:shadow-lg transition-all duration-300"
+              >
+                Get My Show <FaArrowRight className="ml-2" />
+              </button>
+            </div>
+            
+            {/* Connection status indicators */}
+            <div className="mt-6 text-sm text-gray-500 space-y-1">
+              {connectionStatus && (
+                <div>
+                  {connectionStatus === 'Supabase OK' ? 
+                    <span className="text-green-500">✓ {connectionStatus}</span> : 
+                    <span className="text-red-500">✗ {connectionStatus}</span>}
+                </div>
+              )}
+              
+              {tmdbStatus && (
+                <div>
+                  {tmdbStatus === 'TMDB OK' ? 
+                    <span className="text-green-500">✓ {tmdbStatus}</span> : 
+                    <span className="text-yellow-500">⚠ {tmdbStatus}</span>}
+                </div>
+              )}
+              
+              {isLoading && (
+                <div className="text-blue-500">Loading content...</div>
+              )}
+              
+              <div className="text-sm mt-1">
+                <a href="/tmdb-test" className="text-blue-500 underline">Test TMDB Connection</a>
+              </div>
+            </div>
           </div>
-        )}
-        
-        {/* ... rest of the existing landing page code ... */}
+        </section>
       </div>
     )
   );
