@@ -14,7 +14,7 @@ export default function Home() {
   const [showRecommendations, setShowRecommendations] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState('');
   const [tmdbStatus, setTmdbStatus] = useState('');
-  const [recommendations, setRecommendations] = useState<MovieTVShow[]>([]);
+  const [recommendations, setRecommendations] = useState<(MovieTVShow | null)[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [usingSampleData, setUsingSampleData] = useState(false);
   
@@ -92,21 +92,21 @@ export default function Home() {
           content.sort(() => Math.random() - 0.5);
           
           // Set recommendations
-          setRecommendations(content);
+          setRecommendations(content.map(item => item as MovieTVShow | null));
           setTmdbStatus('TMDB OK');
           setUsingSampleData(false);
         } else {
           // Fall back to sample data
           console.log('TMDB API returned no content, using sample data');
           const allSampleData = [...sampleRecommendations, ...generateMoreSampleRecommendations()];
-          setRecommendations(allSampleData);
+          setRecommendations(allSampleData.map(item => item as MovieTVShow | null));
           setTmdbStatus('TMDB Error (Using Sample Data)');
           setUsingSampleData(true);
         }
       } catch (error) {
         console.error('Error loading TMDB content:', error);
         const allSampleData = [...sampleRecommendations, ...generateMoreSampleRecommendations()];
-        setRecommendations(allSampleData);
+        setRecommendations(allSampleData.map(item => item as MovieTVShow | null));
         setTmdbStatus('TMDB Error (Using Sample Data)');
         setUsingSampleData(true);
       } finally {
@@ -129,20 +129,19 @@ export default function Home() {
     }));
   };
 
-  // Sample recommendations data
+  // Sample recommendations
   const sampleRecommendations: MovieTVShow[] = [
     {
       id: 1,
-      title: "Everything Everywhere All At Once",
-      overview: "A wildly imaginative story about a woman who must save the multiverse by connecting with alternate versions of herself.",
-      posterPath: "https://m.media-amazon.com/images/M/MV5BYTdiOTIyZTQtNmQ1OS00NjZlLWIyMTgtYzk5Y2M3ZDVmMDk1XkEyXkFqcGdeQXVyMTAzMDg4NzU0._V1_.jpg",
-      type: "movie",
+      title: "Severance",
+      overview: "Mark leads a team of office workers whose memories have been surgically divided between their work and personal lives.",
+      posterPath: "https://m.media-amazon.com/images/M/MV5BMjE2MjI2ODM1OF5BMl5BanBnXkFtZTgwMjQ0NzMzOTE@._V1_.jpg",
+      type: "tv",
       rating: 8.1,
       genres: ["Sci-Fi", "Drama", "Comedy", "Action"],
       streamingPlatform: ["Netflix", "Prime Video", "Apple TV+"],
       imdbRating: 8.1,
-      rottenTomatoesScore: 95,
-      redditBuzz: "High"
+      rottenTomatoesScore: 95
     },
     {
       id: 2,
@@ -154,8 +153,7 @@ export default function Home() {
       genres: ["Sci-Fi", "Adventure", "Drama"],
       streamingPlatform: ["HBO Max", "Prime Video"],
       imdbRating: 8.0,
-      rottenTomatoesScore: 83,
-      redditBuzz: "High"
+      rottenTomatoesScore: 83
     },
     {
       id: 3,
@@ -167,8 +165,7 @@ export default function Home() {
       genres: ["Drama", "Comedy"],
       streamingPlatform: "HBO Max",
       imdbRating: 8.8,
-      rottenTomatoesScore: 94,
-      redditBuzz: "High"
+      rottenTomatoesScore: 94
     },
     {
       id: 4,
@@ -180,8 +177,7 @@ export default function Home() {
       genres: ["Drama"],
       streamingPlatform: "Hulu",
       imdbRating: 7.4,
-      rottenTomatoesScore: 93,
-      redditBuzz: "Medium"
+      rottenTomatoesScore: 93
     },
     {
       id: 5,
@@ -193,8 +189,7 @@ export default function Home() {
       genres: ["Drama", "Crime"],
       streamingPlatform: ["Netflix", "Prime Video", "HBO Max"],
       imdbRating: 9.3,
-      rottenTomatoesScore: 91,
-      redditBuzz: "High"
+      rottenTomatoesScore: 91
     },
     {
       id: 6,
@@ -206,8 +201,7 @@ export default function Home() {
       genres: ["Comedy", "Drama", "War"],
       streamingPlatform: "Disney+",
       imdbRating: 7.9,
-      rottenTomatoesScore: 80,
-      redditBuzz: "Medium"
+      rottenTomatoesScore: 80
     },
     {
       id: 7,
@@ -219,8 +213,7 @@ export default function Home() {
       genres: ["Drama", "Fantasy", "Horror", "Mystery"],
       streamingPlatform: "Netflix",
       imdbRating: 6.9,
-      rottenTomatoesScore: 90,
-      redditBuzz: "Medium"
+      rottenTomatoesScore: 90
     },
     {
       id: 8,
@@ -232,8 +225,7 @@ export default function Home() {
       genres: ["Action", "Adventure", "Drama"],
       streamingPlatform: "HBO Max",
       imdbRating: 8.6,
-      rottenTomatoesScore: 96,
-      redditBuzz: "High"
+      rottenTomatoesScore: 96
     },
     {
       id: 9,
@@ -245,8 +237,7 @@ export default function Home() {
       genres: ["Comedy", "Drama", "Music"],
       streamingPlatform: "Hulu",
       imdbRating: 8.6,
-      rottenTomatoesScore: 98,
-      redditBuzz: "High"
+      rottenTomatoesScore: 98
     },
     {
       id: 10,
@@ -258,8 +249,7 @@ export default function Home() {
       genres: ["Drama", "Thriller"],
       streamingPlatform: "Hulu",
       imdbRating: 8.5,
-      rottenTomatoesScore: 99,
-      redditBuzz: "High"
+      rottenTomatoesScore: 99
     }
   ];
 
@@ -302,65 +292,65 @@ export default function Home() {
     return (
       <div className="bg-white">
         {/* Hero Section */}
-        <section className="min-h-screen flex flex-col items-center justify-center text-center px-4 py-24">
+        <section className="min-h-screen flex flex-col items-center justify-center text-center px-4 py-12 sm:py-20">
           <div className="max-w-4xl mx-auto">
-            <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold mb-8 tracking-tight text-black">
+            <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold mb-4 sm:mb-6 tracking-tight text-black">
               Tired of endlessly scrolling?
             </h1>
             
-            <h2 className="text-3xl sm:text-4xl md:text-6xl font-bold mb-10">
-              <span className="bg-gradient-to-r from-pink-500 via-red-500 to-orange-500 bg-clip-text text-transparent">
+            <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold mb-4 sm:mb-8">
+              <span className="bg-gradient-to-r from-pink-500 to-orange-400 bg-clip-text text-transparent">
                 Find your next watch — instantly.
               </span>
             </h2>
             
-            <p className="text-lg md:text-xl text-gray-600 mb-14 max-w-3xl mx-auto">
+            <p className="text-base sm:text-lg md:text-xl text-gray-600 mb-8 sm:mb-10 max-w-3xl mx-auto">
               Personalized recommendations powered by AI.
             </p>
             
-            <div className="flex justify-center mb-12">
+            <div className="flex justify-center mb-12 sm:mb-16">
               <button 
                 onClick={startQuiz}
-                className="bg-gradient-to-r from-pink-500 to-orange-400 text-white font-medium text-lg px-8 py-4 rounded-full flex items-center justify-center gap-2 hover:shadow-lg transition-all duration-300"
+                className="bg-gradient-to-r from-pink-500 to-orange-400 text-white font-medium text-base sm:text-lg px-6 sm:px-8 py-3 rounded-full flex items-center justify-center gap-2 hover:shadow-lg transition-all duration-300"
               >
                 Get My Show <FaArrowRight className="ml-2" />
               </button>
             </div>
             
             {/* How It Works Section */}
-            <div className="max-w-6xl mx-auto mt-12 mb-8">
-              <h2 className="text-2xl font-bold text-center mb-8">How It Works</h2>
+            <div className="max-w-6xl mx-auto mt-4 sm:mt-8 mb-8 sm:mb-10">
+              <h2 className="text-xl sm:text-2xl font-bold text-center mb-6 sm:mb-8">How It Works</h2>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
                 {/* Step 1 */}
-                <div className="bg-white rounded-lg p-4 shadow-sm text-center flex flex-col items-center border border-gray-100">
-                  <div className="w-12 h-12 rounded-full bg-pink-100 flex items-center justify-center text-pink-500 font-bold text-lg mb-3">
+                <div className="bg-white rounded-lg p-6 shadow-sm text-center flex flex-col items-center border border-gray-100">
+                  <div className="w-12 h-12 rounded-full bg-pink-100 flex items-center justify-center text-pink-500 font-bold text-lg mb-4">
                     1
                   </div>
                   <h3 className="text-lg font-bold mb-2">Take Quiz</h3>
-                  <p className="text-gray-600 text-sm">
+                  <p className="text-gray-600">
                     Answer a few quick questions about your mood and preferences.
                   </p>
                 </div>
                 
                 {/* Step 2 */}
-                <div className="bg-white rounded-lg p-4 shadow-sm text-center flex flex-col items-center border border-gray-100">
-                  <div className="w-12 h-12 rounded-full bg-pink-100 flex items-center justify-center text-pink-500 font-bold text-lg mb-3">
+                <div className="bg-white rounded-lg p-6 shadow-sm text-center flex flex-col items-center border border-gray-100">
+                  <div className="w-12 h-12 rounded-full bg-pink-100 flex items-center justify-center text-pink-500 font-bold text-lg mb-4">
                     2
                   </div>
                   <h3 className="text-lg font-bold mb-2">Get Recommendations</h3>
-                  <p className="text-gray-600 text-sm">
+                  <p className="text-gray-600">
                     Receive personalized movie and show recommendations.
                   </p>
                 </div>
                 
                 {/* Step 3 */}
-                <div className="bg-white rounded-lg p-4 shadow-sm text-center flex flex-col items-center border border-gray-100">
-                  <div className="w-12 h-12 rounded-full bg-pink-100 flex items-center justify-center text-pink-500 font-bold text-lg mb-3">
+                <div className="bg-white rounded-lg p-6 shadow-sm text-center flex flex-col items-center border border-gray-100">
+                  <div className="w-12 h-12 rounded-full bg-pink-100 flex items-center justify-center text-pink-500 font-bold text-lg mb-4">
                     3
                   </div>
                   <h3 className="text-lg font-bold mb-2">Start Watching</h3>
-                  <p className="text-gray-600 text-sm">
+                  <p className="text-gray-600">
                     Enjoy your perfect match and save favorites for later.
                   </p>
                 </div>
@@ -397,13 +387,13 @@ export default function Home() {
         </section>
 
         {/* Platforms Section */}
-        <section className="py-16 px-4">
+        <section className="py-12 px-4 bg-gray-50">
           <div className="max-w-4xl mx-auto text-center">
-            <h2 className="text-2xl font-bold mb-10">Available on all your favorite platforms</h2>
+            <h2 className="text-2xl font-bold mb-8">Available on all your favorite platforms</h2>
             
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
               {streamingPlatforms.map((platform, index) => (
-                <div key={index} className="bg-gray-50 py-3 px-2 rounded-md shadow-sm">
+                <div key={index} className="bg-white py-3 px-2 rounded-md shadow-sm">
                   <p className="font-medium text-gray-700">{platform.name}</p>
                 </div>
               ))}
@@ -446,33 +436,33 @@ export default function Home() {
   ) : (
     showRecommendations ? (
       <Recommendations 
-        recommendations={recommendations.filter(Boolean) as MovieTVShow[]} 
+        recommendations={recommendations.filter((item): item is MovieTVShow => item !== null)} 
         onRetakeQuiz={handleRetakeQuiz} 
       />
     ) : (
       // Just return the original landing page component instead of duplicating the code
       <div className="bg-white">
         {/* Hero Section */}
-        <section className="min-h-screen flex flex-col items-center justify-center text-center px-4 py-24">
+        <section className="min-h-screen flex flex-col items-center justify-center text-center px-4 py-12 sm:py-20">
           <div className="max-w-4xl mx-auto">
-            <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold mb-8 tracking-tight text-black">
+            <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold mb-4 sm:mb-6 tracking-tight text-black">
               Tired of endlessly scrolling?
             </h1>
             
-            <h2 className="text-3xl sm:text-4xl md:text-6xl font-bold mb-10">
-              <span className="bg-gradient-to-r from-pink-500 via-red-500 to-orange-500 bg-clip-text text-transparent">
+            <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold mb-4 sm:mb-8">
+              <span className="bg-gradient-to-r from-pink-500 to-orange-400 bg-clip-text text-transparent">
                 Find your next watch — instantly.
               </span>
             </h2>
             
-            <p className="text-lg md:text-xl text-gray-600 mb-14 max-w-3xl mx-auto">
+            <p className="text-base sm:text-lg md:text-xl text-gray-600 mb-8 sm:mb-10 max-w-3xl mx-auto">
               Personalized recommendations powered by AI.
             </p>
             
-            <div className="flex justify-center mb-12">
+            <div className="flex justify-center mb-12 sm:mb-16">
               <button 
                 onClick={startQuiz}
-                className="bg-gradient-to-r from-pink-500 to-orange-400 text-white font-medium text-lg px-8 py-4 rounded-full flex items-center justify-center gap-2 hover:shadow-lg transition-all duration-300"
+                className="bg-gradient-to-r from-pink-500 to-orange-400 text-white font-medium text-base sm:text-lg px-6 sm:px-8 py-3 rounded-full flex items-center justify-center gap-2 hover:shadow-lg transition-all duration-300"
               >
                 Get My Show <FaArrowRight className="ml-2" />
               </button>
