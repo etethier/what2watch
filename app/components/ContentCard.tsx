@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { FaStar, FaTv, FaFilm, FaTrophy, FaFire, FaComments, FaHeart, FaRegHeart, FaBookmark, FaRegBookmark, FaThumbsUp, FaThumbsDown, FaInfoCircle, FaImdb, FaPlay, FaChevronDown, FaChevronUp, FaEye } from 'react-icons/fa';
+import { FaStar, FaTv, FaFilm, FaTrophy, FaFire, FaComments, FaHeart, FaRegHeart, FaBookmark, FaRegBookmark, FaThumbsUp, FaThumbsDown, FaInfoCircle, FaImdb, FaPlay, FaChevronDown, FaChevronUp, FaEye, FaLightbulb } from 'react-icons/fa';
 import { IoFastFoodOutline } from 'react-icons/io5';
 import { BsChatSquareQuote, BsExclamationTriangle } from 'react-icons/bs';
 import { SiRottentomatoes } from 'react-icons/si';
@@ -42,12 +42,14 @@ const getStreamingPlatformUrl = (platform: string, title?: string): string => {
 interface ContentCardProps {
   content: MovieTVShow & { 
     releaseYear?: number;
+    explanation?: string;
     // Allow streamingPlatform to be a string or array of strings
   };
   className?: string;
   rank?: number;
   isUserLoggedIn?: boolean;
   onAuthRequired?: () => void;
+  onContentWatched?: (contentId: number) => void;
 }
 
 // Function to calculate match percentage based on rank
@@ -97,7 +99,8 @@ export default function ContentCard({
   className = '', 
   rank,
   isUserLoggedIn = false,
-  onAuthRequired
+  onAuthRequired,
+  onContentWatched
 }: ContentCardProps) {
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -107,6 +110,7 @@ export default function ContentCard({
   const [showAllPlatforms, setShowAllPlatforms] = useState(false);
   const [showSaveNotification, setShowSaveNotification] = useState(false);
   const [showWatchedNotification, setShowWatchedNotification] = useState(false);
+  const [showExplanationTooltip, setShowExplanationTooltip] = useState(false);
   const retried = useRef(false);
   const isMobile = useMediaQuery('(max-width: 640px)');
   
@@ -248,38 +252,35 @@ export default function ContentCard({
           const watchlist = JSON.parse(savedWatchlist);
           const watchlistItem = watchlist.find((item: any) => item.id === content.id);
           
-          if (watchlistItem && watchlistItem.savedAt) {
+          if (watchlistItem) {
             isFromWatchlist = true;
             watchlistItemDate = new Date(watchlistItem.savedAt);
-            const now = new Date();
-            // Calculate time difference in days
-            const diffTime = Math.abs(now.getTime() - watchlistItemDate.getTime());
-            timeToWatch = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            // Calculate time between saving and watching
+            const watchedDate = new Date();
+            timeToWatch = watchedDate.getTime() - watchlistItemDate.getTime();
           }
         }
         
-        // Add to watched with more detailed information
+        // Add to watched
         watched.push({
           id: content.id,
           title: content.title,
           type: content.type,
           posterPath: content.posterPath,
-          genres: content.genres || [],
-          rating: content.rating,
-          imdbRating: content.imdbRating,
-          rottenTomatoesScore: content.rottenTomatoesScore,
-          releaseYear: content.releaseYear,
           watchedAt: new Date().toISOString(),
-          wasInWatchlist: watchlistItemDate !== null,
-          timeToWatchDays: timeToWatch
+          fromWatchlist: isFromWatchlist,
+          timeToWatch: isFromWatchlist ? timeToWatch : null
         });
+        
+        // Notify parent component that content was marked as watched
+        if (onContentWatched) {
+          onContentWatched(content.id);
+        }
         
         // Show notification only when marking as watched (not when removing)
         if (isUserLoggedIn) {
           setShowWatchedNotification(true);
-          
-          // Store if it's from watchlist for the notification
-          localStorage.setItem('last_watched_from_watchlist', isFromWatchlist.toString());
           
           // Clear any existing timeout
           if (watchedNotificationTimeout.current) {
@@ -366,7 +367,7 @@ export default function ContentCard({
       
       {showWatchedNotification && (
         <div className="absolute top-2 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white text-sm py-1.5 px-3 rounded-full shadow-md z-10 animate-fadeIn">
-          <span className="font-semibold">{content.title}</span> {localStorage.getItem('last_watched_from_watchlist') === 'true' ? 'checked off your watchlist!' : 'marked as watched'}
+          <span className="font-semibold">{content.title}</span> marked as watched
         </div>
       )}
       
@@ -407,6 +408,28 @@ export default function ContentCard({
         
         {/* Dark gradient overlay at the bottom for better visibility of title */}
         <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/70 to-transparent"></div>
+
+        {/* Recommendation explanation badge */}
+        {content.explanation && (
+          <div className="absolute top-2 left-2">
+            <div 
+              className="group relative"
+              onMouseEnter={() => setShowExplanationTooltip(true)}
+              onMouseLeave={() => setShowExplanationTooltip(false)}
+            >
+              <div className={`bg-gradient-to-r from-pink-500 to-orange-400 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center`}>
+                <FaLightbulb className="mr-1" size={10} />
+                <span>{content.explanation.split(' ').slice(0, 2).join(' ')}</span>
+              </div>
+              {/* Tooltip */}
+              {showExplanationTooltip && (
+                <div className="absolute z-50 top-full left-0 mt-1 w-48 bg-gray-900 text-white text-xs rounded py-1.5 px-2 animate-tooltipFadeIn">
+                  {content.explanation}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Watched indicator badge */}
         {hasWatched && (

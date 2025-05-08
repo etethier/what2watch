@@ -70,6 +70,30 @@ export default function Quiz({ onComplete }: QuizProps) {
       setSelectedOptions(prev => {
         const currentSelections = prev[currentQuestion.id] || [];
         
+        // For the genres question with maxSelections
+        if (currentQuestion.id === 2 && currentQuestion.maxSelections) {
+          // If already selected, remove it and any subsequent selections
+          if (currentSelections.includes(optionId)) {
+            // Find the index of the option being unselected
+            const index = currentSelections.indexOf(optionId);
+            // Remove it and all subsequent options (to maintain ordering)
+            return {
+              ...prev,
+              [currentQuestion.id]: currentSelections.filter((_, i) => i < index)
+            };
+          } 
+          // If not selected and we haven't reached max selections
+          else if (currentSelections.length < currentQuestion.maxSelections) {
+            // Add the new selection to the end
+            return {
+              ...prev,
+              [currentQuestion.id]: [...currentSelections, optionId]
+            };
+          }
+          // If we've already selected max items, don't add more
+          return prev;
+        }
+        
         // Special handling for streaming platforms question (id: 4)
         if (currentQuestion.id === 4) {
           // "All The Above" option has id: 10
@@ -130,6 +154,14 @@ export default function Quiz({ onComplete }: QuizProps) {
     if (!currentQuestion.multiSelect) return false;
     const selections = selectedOptions[currentQuestion.id] || [];
     return selections.includes(optionId);
+  };
+
+  // Get the selection order number (1-based) for numbered selections
+  const getSelectionNumber = (optionId: number): number | null => {
+    if (!currentQuestion.multiSelect || currentQuestion.id !== 2) return null;
+    const selections = selectedOptions[currentQuestion.id] || [];
+    const index = selections.indexOf(optionId);
+    return index >= 0 ? index + 1 : null;
   };
   
   const handleNext = async (valueOrValues?: string | string[]) => {
@@ -196,6 +228,22 @@ export default function Quiz({ onComplete }: QuizProps) {
         // Create answers array in the format expected by the recommendation service
         const quizAnswers = Object.entries(newAnswers).map(([questionId, answer]) => {
           const question = questions.find(q => q.id === parseInt(questionId));
+          
+          // Special handling for genre question (id: 2) to include priority information
+          if (parseInt(questionId) === 2 && Array.isArray(answer)) {
+            // Create an object that includes the genres with their priority
+            const genresWithPriority = answer.map((genre, index) => ({
+              genre,
+              priority: index + 1  // 1-based priority (1 = highest)
+            }));
+            
+            return {
+              question: question?.text || '',
+              answer: answer.join(', '),  // Keep the original format for backward compatibility
+              genres_priority: genresWithPriority  // Add priority information
+            };
+          }
+          
           return {
             question: question?.text || '',
             answer: Array.isArray(answer) ? answer.join(', ') : answer
@@ -310,11 +358,6 @@ export default function Quiz({ onComplete }: QuizProps) {
             <FaArrowLeft className="mr-2" />
             <span>Back</span>
           </button>
-          
-          {/* Mobile-friendly progress text */}
-          <span className="text-sm md:text-base font-medium text-pink-500">
-            {quizState.currentQuestionIndex + 1}/{questions.length}
-          </span>
         </div>
         
         {/* Main title with gradient - improved size scaling for mobile */}
@@ -324,32 +367,11 @@ export default function Quiz({ onComplete }: QuizProps) {
         
         {/* Enhanced progress indicator - better spacing for mobile */}
         <div className="mb-6 md:mb-8">
-          <div className="flex justify-between mb-2">
-            <span className="font-medium text-sm md:text-base">Step {quizState.currentQuestionIndex + 1} of {questions.length}</span>
-            <span className="text-pink-500 font-medium text-sm md:text-base">{progress}% Complete</span>
-          </div>
           <div className="w-full bg-gray-200 h-2 md:h-3 rounded-full overflow-hidden">
             <div 
-              className="bg-gradient-to-r from-pink-500 to-orange-400 h-full rounded-full"
+              className="bg-gradient-to-r from-pink-500 to-orange-400 h-full rounded-full transition-all duration-300"
               style={{ width: `${progress}%` }}
             ></div>
-          </div>
-          {/* Steps indicators - adjusted for better visibility on mobile */}
-          <div className="flex justify-between mt-2">
-            {questions.map((_, index) => (
-              <div 
-                key={index}
-                className={`w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center text-xs font-medium ${
-                  index < quizState.currentQuestionIndex
-                    ? 'bg-pink-500 text-white' 
-                    : index === quizState.currentQuestionIndex
-                    ? 'bg-gradient-to-r from-pink-500 to-orange-400 text-white ring-2 md:ring-4 ring-pink-100'
-                    : 'bg-gray-200 text-gray-500'
-                }`}
-              >
-                {index < quizState.currentQuestionIndex ? <FaCheck className="text-xs" /> : index + 1}
-              </div>
-            ))}
           </div>
         </div>
         
@@ -404,36 +426,75 @@ export default function Quiz({ onComplete }: QuizProps) {
               
               {currentQuestion.multiSelect && (
                 <p className="text-gray-600 mb-4 md:mb-6 ml-8 italic text-sm md:text-base">
-                  Pick as many as you like!
+                  {(currentQuestion.id === 1 || currentQuestion.id === 2) && currentQuestion.maxSelections
+                    ? `Select up to ${currentQuestion.maxSelections} options`
+                    : "Pick as many as you like!"}
                 </p>
               )}
               
               {/* Options grid - improved for mobile */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 ml-0 md:ml-8">
-                {currentQuestion.options.map((option) => (
-                  <button
-                    key={option.id}
-                    onClick={() => handleOptionSelect(option.id)}
-                    className={`p-4 text-left rounded-xl border-2 transition-all duration-200 ${
-                      isOptionSelected(option.id) 
-                        ? 'border-pink-500 bg-gradient-to-r from-pink-50 to-orange-50 shadow-md' 
-                        : 'border-gray-200 hover:border-pink-300 hover:shadow-md'
-                    }`}
-                  >
-                    <div className="flex items-center">
-                      <div className={`min-w-5 w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center ${
-                        isOptionSelected(option.id)
-                          ? 'border-pink-500 bg-pink-500'
-                          : 'border-gray-300'
-                      }`}>
-                        {isOptionSelected(option.id) && <FaCheck className="text-white text-xs" />}
+                {currentQuestion.options.map((option) => {
+                  // Get selection number for genre question (question 2)
+                  const selectionNumber = getSelectionNumber(option.id);
+                  
+                  return (
+                    <button
+                      key={option.id}
+                      onClick={() => handleOptionSelect(option.id)}
+                      className={`p-4 text-left rounded-xl border-2 transition-all duration-200 ${
+                        isOptionSelected(option.id) 
+                          ? 'border-pink-500 bg-gradient-to-r from-pink-50 to-orange-50 shadow-md' 
+                          : 'border-gray-200 hover:border-pink-300 hover:shadow-md'
+                      } ${
+                        // Disable button style if we've reached max selections and this option isn't selected
+                        currentQuestion.maxSelections && 
+                        (selectedOptions[currentQuestion.id] || []).length >= currentQuestion.maxSelections &&
+                        !isOptionSelected(option.id) ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}
+                      disabled={
+                        currentQuestion.maxSelections && 
+                        (selectedOptions[currentQuestion.id] || []).length >= currentQuestion.maxSelections &&
+                        !isOptionSelected(option.id) ? true : false
+                      }
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          {/* For genres question, show selection number */}
+                          {currentQuestion.id === 2 ? (
+                            selectionNumber ? (
+                              <div className="min-w-7 w-7 h-7 rounded-full bg-pink-500 text-white flex items-center justify-center mr-3 font-bold">
+                                {selectionNumber}
+                              </div>
+                            ) : (
+                              <div className="min-w-7 w-7 h-7 rounded-full border-2 border-gray-300 flex items-center justify-center mr-3">
+                                
+                              </div>
+                            )
+                          ) : (
+                            // For other questions, show checkmark
+                            <div className={`min-w-5 w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center ${
+                              isOptionSelected(option.id)
+                                ? 'border-pink-500 bg-pink-500'
+                                : 'border-gray-300'
+                            }`}>
+                              {isOptionSelected(option.id) && <FaCheck className="text-white text-xs" />}
+                            </div>
+                          )}
+                          <span className={`font-medium text-sm md:text-base ${isOptionSelected(option.id) ? 'text-pink-700' : 'text-gray-700'}`}>
+                            {option.text}
+                          </span>
+                        </div>
+                        
+                        {currentQuestion.id === 2 && selectionNumber && (
+                          <span className="text-xs bg-pink-100 text-pink-500 px-2 py-1 rounded-full">
+                            #{selectionNumber}
+                          </span>
+                        )}
                       </div>
-                      <span className={`font-medium text-sm md:text-base ${isOptionSelected(option.id) ? 'text-pink-700' : 'text-gray-700'}`}>
-                        {option.text}
-                      </span>
-                    </div>
-                  </button>
-                ))}
+                    </button>
+                  );
+                })}
               </div>
               
               {/* Show Next button for multi-select questions - enhanced for mobile */}
@@ -442,10 +503,27 @@ export default function Quiz({ onComplete }: QuizProps) {
                   <button
                     onClick={() => handleNext()}
                     className="bg-gradient-to-r from-pink-500 to-orange-400 text-white px-6 md:px-8 py-2.5 md:py-3 rounded-full flex items-center shadow-md w-full md:w-auto justify-center"
-                    disabled={(selectedOptions[currentQuestion.id] || []).length === 0}
+                    disabled={
+                      (selectedOptions[currentQuestion.id] || []).length === 0
+                      ? true : false
+                    }
                   >
                     Next <FaArrowRight className="ml-2" />
                   </button>
+                </div>
+              )}
+              
+              {/* Tip for questions with maxSelections */}
+              {currentQuestion.multiSelect && currentQuestion.maxSelections && (
+                <div className="mt-4 text-xs text-gray-500 italic text-center">
+                  {currentQuestion.id === 2 ? (
+                    <>
+                      <p>Click options in order of preference to select up to 3 genres.</p>
+                      <p className="mt-1">Click an option again to deselect it.</p>
+                    </>
+                  ) : (
+                    <p>Click an option again to deselect it.</p>
+                  )}
                 </div>
               )}
             </div>

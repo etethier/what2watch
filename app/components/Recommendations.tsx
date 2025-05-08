@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { MovieTVShow } from '../types';
-import { FaArrowLeft, FaInfoCircle, FaFilter, FaSlidersH, FaSearch, FaTrophy, FaUserPlus, FaSignInAlt, FaTimes } from 'react-icons/fa';
+import { FaArrowLeft, FaInfoCircle, FaFilter, FaSlidersH, FaSearch, FaTrophy, FaUserPlus, FaSignInAlt, FaTimes, FaLightbulb } from 'react-icons/fa';
 import supabaseService from '../services/supabase-wrapper';
 import ContentCard from './ContentCard';
 
@@ -344,7 +344,39 @@ export default function Recommendations({ recommendations, onRetakeQuiz, session
                 They're specifically selected based on your genre preferences, rating thresholds, 
                 and current popularity trends.
               </p>
-              <p className="text-xs text-gray-500 italic">
+              <div className="mt-4 p-3 bg-white rounded-lg border border-pink-100">
+                <h4 className="text-sm font-bold text-gray-800 mb-1 flex items-center">
+                  <FaInfoCircle className="text-pink-500 mr-2" /> 
+                  How Recommendations Work
+                </h4>
+                <p className="text-xs text-gray-600 mb-1">
+                  Each movie or show card includes a colored badge that explains why it was recommended to you:
+                </p>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  <div className="flex items-center text-xs">
+                    <span className="inline-flex items-center px-2 py-1 rounded-full bg-gradient-to-r from-pink-500 to-orange-400 text-white mr-2">
+                      <FaLightbulb className="mr-1" size={10} />
+                      Trending now
+                    </span>
+                    <span className="text-gray-600">Popular content that matches your taste</span>
+                  </div>
+                  <div className="flex items-center text-xs">
+                    <span className="inline-flex items-center px-2 py-1 rounded-full bg-gradient-to-r from-pink-500 to-orange-400 text-white mr-2">
+                      <FaLightbulb className="mr-1" size={10} />
+                      Critically acclaimed
+                    </span>
+                    <span className="text-gray-600">High ratings from IMDb ({'>'}7.0) and RT ({'>'}70%)</span>
+                  </div>
+                  <div className="flex items-center text-xs">
+                    <span className="inline-flex items-center px-2 py-1 rounded-full bg-gradient-to-r from-pink-500 to-orange-400 text-white mr-2">
+                      <FaLightbulb className="mr-1" size={10} />
+                      Hot off the press
+                    </span>
+                    <span className="text-gray-600">Released within the last 1-2 years</span>
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 italic mt-2">
                 Pro tip: Click the "Watch Trailer" button to preview any recommendation before deciding what to watch.
               </p>
             </div>
